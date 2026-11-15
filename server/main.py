@@ -15,8 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from . import push, store
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-log = logging.getLogger("server")
+log =logging.getLogger("server")
 
 PUBLIC_DIR = Path(__file__).resolve().parent.parent / "public"
 TICK_SECONDS = 10                       # kiểm tra lịch mỗi 10 giây

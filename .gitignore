@@ -2,3 +2,9 @@
 __pycache__/
 # Chứa khoá bí mật VAPID và subscription của thiết bị — không commit
 data/
+
+# Biến môi trường chứa mật khẩu cơ sở dữ liệu — không commit
+.env
+.env.*
+node_modules/
+.neon
