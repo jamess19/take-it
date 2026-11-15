@@ -346,7 +346,132 @@ input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; }
 .chip.is-soon { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
 .chip-prio.prio-high { color: var(--danger); font-weight: 600; }
 .chip-prio.prio-medium { color: var(--warn); }
-.task-cta { margin-top: 10px; }
+.task-cta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+.note-btn {
+  border: 1px solid var(--border); background: transparent; color: var(--text-2);
+  border-radius: 99px; padding: 4px 11px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.note-btn:hover { border-color: var(--accent); color: var(--accent); }
+.note-btn.has-note { color: var(--accent); background: var(--accent-soft); border-color: transparent; font-weight: 600; }
+
+/* ===== Trang soạn ghi chú: 1 thanh trên + vùng viết tập trung ===== */
+.note-dialog {
+  width: min(1040px, calc(100vw - 48px)); height: min(920px, calc(100dvh - 48px)); max-width: none; max-height: none;
+  border: 1px solid var(--border); border-radius: 18px; padding: 0; overflow: hidden;
+  background: var(--surface); color: var(--text); box-shadow: 0 24px 80px rgba(0,0,0,.3);
+}
+.note-dialog[open] { display: flex; flex-direction: column; }
+.note-dialog::backdrop { background: rgba(20, 45, 70, .4); backdrop-filter: blur(4px); }
+.note-bar {
+  display: flex; align-items: center; gap: 6px; padding: 10px 14px; flex: none;
+  border-bottom: 1px solid var(--border);
+}
+.note-back svg { width: 20px; height: 20px; display: block; }
+.note-back svg { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* Tên việc dạng đường dẫn: "Việc / ghi chú" */
+.note-crumb {
+  flex: none; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 14px; font-weight: 600; color: var(--text-2);
+}
+.note-crumb::after { content: "/"; margin: 0 4px 0 10px; opacity: .45; font-weight: 400; }
+/* Tab ghi chú: chữ đơn giản, ghi chú đang mở đậm + nền nhạt */
+.note-tabs { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.note-tabs::-webkit-scrollbar { display: none; }
+.note-tab {
+  flex: none; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 0; background: transparent; color: var(--text-2); border-radius: 8px; padding: 6px 10px; font-size: 14px; cursor: pointer;
+}
+.note-tab:hover { background: var(--surface-2); color: var(--text); }
+.note-tab.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.note-tab-new { color: var(--accent); font-size: 16px; line-height: 1; padding: 5px 9px; }
+.note-bar-actions { flex: none; display: flex; align-items: center; gap: 6px; margin-left: 6px; }
+.note-state { font-size: 12.5px; color: var(--text-2); white-space: nowrap; }
+.note-state[data-state="saved"]::before { content: "✓ "; color: var(--success); }
+.note-state[data-state="dirty"] { color: var(--warn); font-weight: 600; }
+.note-save { padding: 7px 16px; border-radius: 10px; font-size: 14px; }
+.note-save:disabled { opacity: .4; cursor: default; box-shadow: none; }
+/* Nút phụ trên thanh: không nền, icon nét */
+.tool-btn {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--text-2);
+  border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13.5px; cursor: pointer; white-space: nowrap;
+}
+.tool-btn .ico { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.tool-btn:hover { background: var(--surface-2); color: var(--text); }
+.tool-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tool-icon { padding: 7px 8px; }
+.tool-btn.tool-danger:hover { background: var(--danger-soft); color: var(--danger); }
+/* Vùng viết: cột giữa, tên và nội dung cuộn chung */
+.note-scroll { flex: 1; min-height: 0; overflow-y: auto; cursor: text; }
+.note-sheet { max-width: 720px; margin: 0 auto; padding: 44px 32px 30vh; display: flex; flex-direction: column; }
+.note-name {
+  border: 0; outline: 0; background: transparent; color: var(--text); width: 100%; padding: 0;
+  font: inherit; font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; margin-bottom: 18px;
+}
+.note-name::placeholder { color: var(--text-2); opacity: .4; }
+.note-sheet textarea {
+  width: 100%; resize: none; border: 0; outline: 0; background: transparent; color: var(--text); overflow: hidden;
+  padding: 0; font: inherit; font-size: 16.5px; line-height: 1.8; tab-size: 4; min-height: 1.8em;
+}
+.note-sheet textarea::placeholder { color: var(--text-2); opacity: .55; }
+.note-tpl-hint {
+  align-self: flex-start; margin-top: 14px; border: 1px dashed var(--border); background: transparent; color: var(--text-2);
+  border-radius: 99px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+}
+.note-tpl-hint:hover { border-color: var(--accent); color: var(--accent); }
+.note-tpl-hint[hidden] { display: none; }
+/* Hỏi lưu thay đổi */
+.unsaved-dialog { width: min(420px, calc(100vw - 32px)); }
+.unsaved-dialog p { margin: 0 0 18px; color: var(--text-2); line-height: 1.55; }
+.unsaved-dialog p b { color: var(--text); }
+.btn-danger-text { color: var(--danger); }
+.btn-danger-text:hover { color: var(--danger); background: var(--danger-soft); }
+
+/* ===== Trang danh sách ghi chú ===== */
+.notes-tools { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 10px; margin-bottom: 18px; align-items: center; }
+.notes-create { display: flex; gap: 8px; min-width: 0; }
+.notes-create select {
+  flex: 1; min-width: 0; height: 42px; padding: 0 38px 0 14px; border-radius: 12px; border: 1px solid var(--border);
+  background-color: var(--surface); color: var(--text); font-size: 14px; cursor: pointer;
+}
+.notes-create select:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.notes-create select:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.notes-create .btn { height: 42px; border-radius: 12px; padding: 0 16px; white-space: nowrap; }
+.notes-create .btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.notes-tools .search-box { height: 42px; border-radius: 12px; padding: 0 14px; }
+.notes-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.note-card {
+  display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 16px; background: var(--surface); transition: border-color .15s, transform .15s;
+}
+.note-card:hover, .note-card:focus-visible { border-color: var(--accent); outline: none; transform: translateY(-1px); }
+.note-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.note-card h3 { margin: 0; font-size: 16px; line-height: 1.35; word-break: break-word; }
+.note-card time { flex: none; font-size: 12px; color: var(--text-2); }
+.note-card-task {
+  align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 2px 9px; border-radius: 99px;
+}
+.note-card-task.is-done { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+.note-card-task.is-gone { color: var(--text-2); background: var(--surface-2); }
+.note-card p { margin: 0; font-size: 14px; color: var(--text-2); line-height: 1.55;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.note-card p.muted { font-style: italic; opacity: .7; }
+.note-card small { font-size: 12px; color: var(--text-2); opacity: .8; }
+
+/* Điện thoại: trang soạn phủ toàn màn hình, tab ghi chú xuống hàng 2 */
+@media (max-width: 760px) {
+  .note-dialog { width: 100vw; height: 100dvh; border-radius: 0; border: 0; margin: 0; }
+  .note-bar { flex-wrap: wrap; padding: calc(env(safe-area-inset-top) + 8px) 10px 8px; row-gap: 4px; }
+  .note-crumb { flex: 1; max-width: none; }
+  .note-crumb::after { content: none; }
+  .note-tabs { order: 5; flex-basis: 100%; }
+  .note-state { display: none; }
+  #note-template span { display: none; } /* điện thoại: chỉ icon */
+  .note-sheet { padding: 24px 18px 40vh; }
+  .note-name { font-size: 24px; margin-bottom: 12px; }
+  .notes-tools { grid-template-columns: minmax(0, 1fr); }
+  .notes-create select { font-size: 16px; }
+}
 .start-btn {
   border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent);
   border-radius: 99px; padding: 4px 11px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
@@ -437,7 +562,7 @@ input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; }
   /* Bắt đầu chiếm 1 dòng; thời lượng / nhắc trước / ưu tiên chung 1 dòng */
   .field-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .field-grid .field:first-child { grid-column: 1 / -1; }
-  .field > select { padding-left: 9px; padding-right: 4px; }
+  .field > select { padding-left: 9px; padding-right: 28px; background-position: right 8px center; }
   .composer-details { gap: 10px; padding: 10px 6px 4px; }
   /* Chọn nhanh: 1 hàng, vuốt ngang */
   .quick-dates { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
@@ -453,3 +578,18 @@ input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; }
 /* Chế độ tối: logo và thanh tiến độ bớt rực */
 :root[data-theme="dark"] .brand-logo { background: linear-gradient(135deg, #6a9ec9, #4a7fae); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-logo { background: linear-gradient(135deg, #6a9ec9, #4a7fae); } }
+
+/* Ô chọn: bỏ mũi tên mặc định của trình duyệt, dùng icon chevron nét mảnh (màu trung tính hợp cả sáng/tối) */
+select, .field select, .notes-create select {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238595a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-size: 16px 16px;
+}
+select:not(.field > select):not(.notes-create select) { background-position: right 10px center; padding-right: 32px; }
+.field select { background-position: right 10px center; padding-right: 32px; }
+.notes-create select { background-position: right 14px center; }
+
+/* Ô ghi chú của việc: tự giãn theo nội dung (JS đặt chiều cao), tối đa 5 dòng rồi cuộn */
+textarea[data-autosize] { resize: none; overflow-y: hidden; max-height: calc(5 * 1.5em + 20px); line-height: 1.5; }
+#edit-note { min-height: 5.2em; }
+

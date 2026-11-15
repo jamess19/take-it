@@ -3,9 +3,12 @@ const Storage = (() => {
   const TASKS_KEY = "todo.tasks.v1";
   const THEME_KEY = "todo.theme";
 
-  function loadTasks() {
+  const NOTES_KEY = "todo.notes.v1";
+
+  // Danh sách bản ghi (việc / ghi chú) lưu dạng JSON
+  function loadList(key) {
     try {
-      const raw = localStorage.getItem(TASKS_KEY);
+      const raw = localStorage.getItem(key);
       const list = raw ? JSON.parse(raw) : [];
       return Array.isArray(list) ? list : [];
     } catch {
@@ -13,13 +16,18 @@ const Storage = (() => {
     }
   }
 
-  function saveTasks(tasks) {
+  function saveList(key, list) {
     try {
-      localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+      localStorage.setItem(key, JSON.stringify(list));
     } catch (err) {
       console.error("Không lưu được dữ liệu:", err);
     }
   }
+
+  const loadTasks = () => loadList(TASKS_KEY);
+  const saveTasks = (tasks) => saveList(TASKS_KEY, tasks);
+  const loadNotes = () => loadList(NOTES_KEY);
+  const saveNotes = (notes) => saveList(NOTES_KEY, notes);
 
   function loadTheme() {
     try { return localStorage.getItem(THEME_KEY); } catch { return null; }
@@ -38,5 +46,5 @@ const Storage = (() => {
     try { value == null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* bỏ qua */ }
   }
 
-  return { loadTasks, saveTasks, loadTheme, saveTheme, loadValue, saveValue };
+  return { loadTasks, saveTasks, loadNotes, saveNotes, loadTheme, saveTheme, loadValue, saveValue };
 })();

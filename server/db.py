@@ -61,6 +61,20 @@ CREATE TABLE IF NOT EXISTS tasks (
     updated_at      BIGINT NOT NULL,
     PRIMARY KEY (user_id, id)
 );
+-- Ghi chú thực hiện: mỗi việc có thể có nhiều ghi chú có tên (task_id trỏ tới tasks.id của cùng người dùng).
+-- Không ràng buộc khoá ngoại với tasks: việc bị xoá thì ghi chú vẫn giữ (là bài viết của người dùng).
+CREATE TABLE IF NOT EXISTS notes (
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id         TEXT NOT NULL,
+    task_id    TEXT NOT NULL DEFAULT '',
+    title      TEXT NOT NULL DEFAULT '',
+    body       TEXT NOT NULL DEFAULT '',
+    created_at BIGINT NOT NULL DEFAULT 0,
+    deleted    BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at BIGINT NOT NULL,
+    PRIMARY KEY (user_id, id)
+);
+CREATE INDEX IF NOT EXISTS idx_notes_task ON notes(user_id, task_id);
 CREATE TABLE IF NOT EXISTS devices (
     id         TEXT PRIMARY KEY,
     user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

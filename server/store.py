@@ -10,6 +10,7 @@ from . import db
 from .db import DATA_DIR  # noqa: F401  (push.py dùng)
 
 MAX_TASKS_PER_USER = 5000
+MAX_NOTES_PER_USER = 5000
 TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000  # việc đã xoá giữ dấu 30 ngày để thiết bị khác kịp nhận
 
 # Cột trong bảng tasks ↔ tên trường app dùng (JSON)
@@ -148,13 +149,34 @@ _UPSERT_TASK = (
 )
 
 
-def merge_tasks(uid: str, incoming: list[dict]) -> list[dict] | None:
-    """Gộp các việc thiết bị gửi lên (mỗi việc 1 dòng, bản có updatedAt mới hơn thắng).
-    Trả về toàn bộ danh sách sau khi gộp (kể cả dấu xoá), hoặc None nếu vượt giới hạn số việc."""
+NOTE_FIELDS = [("id", "id"), ("task_id", "taskId"), ("title", "title"), ("body", "body"),
+               ("created_at", "createdAt"), ("updated_at", "updatedAt"), ("deleted", "deleted")]
+_NOTE_COLS = [c for c, _ in NOTE_FIELDS]
+_UPSERT_NOTE = (
+    f"INSERT INTO notes (user_id, {', '.join(_NOTE_COLS)}) VALUES (?, {', '.join('?' for _ in _NOTE_COLS)}) "
+    f"ON CONFLICT (user_id, id) DO UPDATE SET {', '.join(f'{c} = excluded.{c}' for c in _NOTE_COLS if c != 'id')} "
+    "WHERE notes.updated_at < excluded.updated_at"
+)
+_NOTE_DEFAULTS = {"task_id": "", "title": "", "body": "", "created_at": 0, "deleted": False}
+
+
+def _note_out(row: dict) -> dict:
+    if row["deleted"]:
+        return {"id": row["id"], "updatedAt": row["updated_at"], "deleted": True}
+    return {field: (bool(row[col]) if col == "deleted" else row[col]) for col, field in NOTE_FIELDS}
+
+
+def merge_tasks(uid: str, incoming: list[dict], incoming_notes: list[dict] = ()) -> dict | None:
+    """Gộp việc và ghi chú thiết bị gửi lên (mỗi bản ghi 1 dòng, bản có updatedAt mới hơn thắng).
+    Trả về toàn bộ {"tasks", "notes"} sau khi gộp (kể cả dấu xoá), hoặc None nếu vượt giới hạn số lượng."""
     with db.tx() as t:
         if incoming:
             have = {r["id"] for r in t.all("SELECT id FROM tasks WHERE user_id = ?", (uid,))}
             if len(have | {x["id"] for x in incoming}) > MAX_TASKS_PER_USER:
+                return None
+        if incoming_notes:
+            have = {r["id"] for r in t.all("SELECT id FROM notes WHERE user_id = ?", (uid,))}
+            if len(have | {x["id"] for x in incoming_notes}) > MAX_NOTES_PER_USER:
                 return None
         rows = []
         for x in incoming:
@@ -162,9 +184,19 @@ def merge_tasks(uid: str, incoming: list[dict]) -> list[dict] | None:
                 x = {"id": x["id"], "updatedAt": x["updatedAt"], "deleted": True}
             rows.append((uid, *[x.get(f, _default(c)) for c, f in TASK_FIELDS]))
         t.many(_UPSERT_TASK, rows)
-        t.run("DELETE FROM tasks WHERE user_id = ? AND deleted = ? AND updated_at < ?",
-              (uid, True, now_ms() - TOMBSTONE_TTL_MS))
-        return [_task_out(r) for r in t.all("SELECT * FROM tasks WHERE user_id = ?", (uid,))]
+        rows = []
+        for x in incoming_notes:
+            if x["deleted"]:  # ghi chú đã xoá chỉ giữ dấu xoá, bỏ nội dung
+                x = {"id": x["id"], "updatedAt": x["updatedAt"], "deleted": True}
+            rows.append((uid, *[x.get(f, _NOTE_DEFAULTS.get(c)) for c, f in NOTE_FIELDS]))
+        t.many(_UPSERT_NOTE, rows)
+        cutoff = now_ms() - TOMBSTONE_TTL_MS
+        t.run("DELETE FROM tasks WHERE user_id = ? AND deleted = ? AND updated_at < ?", (uid, True, cutoff))
+        t.run("DELETE FROM notes WHERE user_id = ? AND deleted = ? AND updated_at < ?", (uid, True, cutoff))
+        return {
+            "tasks": [_task_out(r) for r in t.all("SELECT * FROM tasks WHERE user_id = ?", (uid,))],
+            "notes": [_note_out(r) for r in t.all("SELECT * FROM notes WHERE user_id = ?", (uid,))],
+        }
 
 
 def _default(col: str):

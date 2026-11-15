@@ -35,6 +35,16 @@
   // Việc đang hiển thị (bỏ các việc đã xoá — chỉ còn giữ dấu xoá để đồng bộ)
   const live = () => state.tasks.filter((t) => !t.deleted);
 
+  // Ô ghi chú tự giãn theo nội dung; chạm chiều cao tối đa (CSS max-height) thì cuộn bên trong
+  function autosize(el) {
+    el.style.height = "auto";
+    const max = parseFloat(getComputedStyle(el).maxHeight) || Infinity;
+    const h = el.scrollHeight + (el.offsetHeight - el.clientHeight); // cộng viền để không bị hụt
+    el.style.height = `${Math.min(h, max)}px`;
+    el.style.overflowY = h > max ? "auto" : "hidden";
+  }
+  document.addEventListener("input", (e) => { if (e.target.matches?.("textarea[data-autosize]")) autosize(e.target); });
+
   function findTask(id) {
     return state.tasks.find((t) => t.id === id);
   }
@@ -136,7 +146,12 @@
 
     const statusHtml = status ? `<span class="status ${status.cls}">${status.text}</span>` : "";
     const metaHtml = meta.length ? `<div class="task-meta">${meta.map((m) => `<span>${m}</span>`).join("")}</div>` : "";
-    const startBtn = !t.done && !t.startedAt ? `<div class="task-cta"><button class="start-btn" data-action="start">▶ Bắt đầu</button></div>` : "";
+    const noteCount = Notes.countFor(t.id);
+    const cta = [
+      !t.done && !t.startedAt ? `<button class="start-btn" data-action="start">▶ Bắt đầu</button>` : "",
+      `<button class="note-btn ${noteCount ? "has-note" : ""}" data-action="note">📝 Ghi chú${noteCount ? ` · ${noteCount}` : ""}</button>`,
+    ].join("");
+    const startBtn = `<div class="task-cta">${cta}</div>`;
 
     return `
       <li class="task prio-${t.priority} ${t.done ? "is-done" : ""} ${cat === "doing" ? "is-started" : ""}" data-id="${t.id}">
@@ -189,7 +204,7 @@
     const q = state.query.trim().toLowerCase();
     const visible = live()
       .filter((t) => matchesFilter(t, state.filter))
-      .filter((t) => !q || t.title.toLowerCase().includes(q) || (t.note || "").toLowerCase().includes(q))
+      .filter((t) => !q || [t.title, t.note].some((x) => (x || "").toLowerCase().includes(q)))
       .sort(compare);
 
     let html = "";
@@ -215,6 +230,8 @@
     }
     $("#view-title").textContent = FILTER_TITLES[state.filter];
     renderCounts();
+    Notes.renderHead(); // trang ghi chú đang mở: cập nhật trạng thái việc
+    if (currentView() === "notes") Notes.renderPage();
   }
 
   // ---------- Toast ----------
@@ -497,6 +514,7 @@
       }
       addTask({ title, note: $("#new-note").value, start, duration, remindBefore: $("#new-remind").value, priority: $("#new-priority").value });
       $("#composer").reset();
+      autosize($("#new-note"));
       fillRemindSelect($("#new-remind"), DEFAULT_REMIND);
       fillDurationSelect($("#new-duration"), DEFAULT_DURATION);
       preview();
@@ -526,6 +544,7 @@
     updateEndPreview($("#edit-start"), $("#edit-duration"), $("#edit-end"));
     $("#edit-priority").value = t.priority;
     $("#edit-dialog").showModal();
+    autosize($("#edit-note")); // đo sau khi hộp thoại đã hiện
     $("#edit-title").focus();
   }
 
@@ -626,24 +645,37 @@
   }
 
   // ---------- Điều hướng: trang công việc / trang cá nhân (theo #hash để nút Quay lại hoạt động) ----------
-  const currentView = () => (location.hash === "#profile" && Api.isLoggedIn() ? "profile" : "tasks");
+  // #note/<id> là trang soạn phủ lên trang đang xem → giữ trang bên dưới (công việc hoặc danh sách ghi chú)
+  function currentView() {
+    if (location.hash === "#profile" && Api.isLoggedIn()) return "profile";
+    if (location.hash === "#notes") return "notes";
+    if (Notes.hasHash() && lastView === "notes") return "notes";
+    return "tasks";
+  }
+  const VIEW_HASH = { profile: "#profile", notes: "#notes", tasks: "" };
 
   function navigate(view) {
-    const hash = view === "profile" ? "#profile" : "";
+    const hash = VIEW_HASH[view] ?? "";
     if (location.hash !== hash) history.pushState(null, "", hash || location.pathname);
     renderView();
   }
 
+  let lastView = null;
   function renderView() {
     const view = currentView();
     document.body.dataset.view = view;
     $("#tasks-view").hidden = view !== "tasks";
     $("#profile-view").hidden = view !== "profile";
+    $("#notes-view").hidden = view !== "notes";
     $("#nav-tasks").classList.toggle("active", view === "tasks");
+    $("#nav-notes").classList.toggle("active", view === "notes");
     $("#nav-profile").classList.toggle("active", view === "profile");
     if (view === "profile") Profile.show();
+    if (view === "notes") Notes.renderPage();
+    Notes.syncWithHash();
     setDrawer(false);
-    window.scrollTo(0, 0);
+    if (view !== lastView) window.scrollTo(0, 0); // đóng/mở trang ghi chú thì giữ nguyên vị trí cuộn danh sách
+    lastView = view;
   }
 
   // Điện thoại: sidebar thành ngăn kéo trượt, mở bằng nút ☰
@@ -684,10 +716,11 @@
     if (owner && owner !== email) {
       // Dữ liệu trên máy thuộc tài khoản khác → bỏ, tải dữ liệu của tài khoản này về
       state.tasks = [];
+      Notes.clear();
       TaskSync.clear();
     } else {
       // Việc đang có trên máy (tạo trước khi có tài khoản, hoặc server đã mất) → gửi lên; server chỉ nhận bản mới hơn nên không ghi đè
-      TaskSync.markAll(state.tasks);
+      TaskSync.markAll(state.tasks, Notes.all());
     }
     Storage.saveValue(OWNER_KEY, email);
     Storage.saveTasks(state.tasks);
@@ -695,6 +728,7 @@
     renderAccount();
     Profile.refresh();
     render();
+    Notes.syncWithHash(); // mở bằng đường dẫn #note/... trước khi đăng nhập
     await PushSync.init();
     await TaskSync.syncNow();
   }
@@ -725,6 +759,7 @@
     await Api.logout();
     // Xoá dữ liệu trên máy để người khác dùng máy này không thấy
     state.tasks = [];
+    Notes.clear();
     TaskSync.clear();
     Storage.saveTasks([]);
     Storage.saveValue(OWNER_KEY, null);
@@ -740,6 +775,8 @@
     TaskSync.init({
       getTasks: () => state.tasks,
       setTasks: (list) => { state.tasks = list; Storage.saveTasks(list); render(); },
+      getNotes: () => Notes.all(),
+      setNotes: (list) => { Notes.replaceAll(list); render(); },
       onStatus: renderSyncStatus,
       // Danh sách việc vừa cập nhật → gửi lịch nhắc mới lên server cho mọi thiết bị
       onSynced: () => PushSync.sync(pushEvents()),
@@ -793,6 +830,7 @@
       if (action === "toggle") toggleTask(id);
       if (action === "start") startTask(id);
       if (action === "edit") openEdit(id);
+      if (action === "note") Notes.openForTask(id);
       if (action === "delete") deleteTask(id);
     };
 
@@ -802,7 +840,7 @@
     // Phím tắt: N = thêm việc, / = tìm kiếm
     document.addEventListener("keydown", (e) => {
       const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-      if (typing || e.metaKey || e.ctrlKey || e.altKey || $("#edit-dialog").open || currentView() !== "tasks") return;
+      if (typing || e.metaKey || e.ctrlKey || e.altKey || $("#edit-dialog").open || $("#note-dialog").open || currentView() !== "tasks") return;
       if (e.key === "n" || e.key === "N") { e.preventDefault(); $("#new-title").focus(); }
       if (e.key === "/") { e.preventDefault(); $("#search").focus(); }
     });
@@ -825,6 +863,16 @@
   initHeader();
   initComposer();
   initEditDialog();
+  Notes.init({
+    findTask,
+    liveTasks: live,
+    toast,
+    escapeHtml,
+    uid,
+    allowed: () => Api.isLoggedIn() || !Api.available(), // chưa đăng nhập thì không che màn đăng nhập
+    baseHash: () => VIEW_HASH[lastView] || "",
+    onChange: render,
+  });
   initEvents();
   updateNotifyCard();
   initAccount();

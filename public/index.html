@@ -38,6 +38,7 @@
 
       <nav class="sb-nav" aria-label="Điều hướng">
         <button class="nav-item" type="button" data-nav="tasks" id="nav-tasks" title="Công việc"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span class="sb-text">Công việc</span><b class="has-alert" id="nav-overdue" title="Việc quá hạn"></b></button>
+        <button class="nav-item" type="button" data-nav="notes" id="nav-notes" title="Ghi chú"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span class="sb-text">Ghi chú</span></button>
         <button class="nav-item" type="button" data-nav="profile" id="nav-profile" title="Trang cá nhân"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span class="sb-text">Trang cá nhân</span></button>
       </nav>
 
@@ -74,7 +75,7 @@
         </div>
 
         <div class="composer-details" id="composer-details">
-          <textarea id="new-note" rows="1" placeholder="Ghi chú (không bắt buộc)"></textarea>
+          <textarea id="new-note" rows="1" maxlength="2000" data-autosize placeholder="Ghi chú (không bắt buộc)"></textarea>
           <div class="field-grid">
             <label class="field">
               <span>Bắt đầu</span>
@@ -137,6 +138,32 @@
       </div>
       </div>
 
+      <!-- Trang ghi chú: mọi ghi chú thực hiện của mọi việc -->
+      <section id="notes-view" class="notes-page" hidden>
+        <header class="topbar">
+          <div>
+            <h1>Ghi chú</h1>
+            <p class="subtitle" id="notes-count"></p>
+          </div>
+        </header>
+        <div class="notes-tools">
+          <div class="notes-create">
+            <select id="notes-task" aria-label="Việc cần ghi chú"></select>
+            <button type="button" class="btn btn-primary" id="notes-create" disabled>＋ Tạo ghi chú</button>
+          </div>
+          <label class="search-box">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input id="notes-search" type="search" placeholder="Tìm trong ghi chú…" autocomplete="off" />
+          </label>
+        </div>
+        <ul class="notes-list" id="notes-list"></ul>
+        <div class="empty" id="notes-empty" hidden>
+          <div class="empty-icon">📝</div>
+          <h3 id="notes-empty-title">Chưa có ghi chú nào</h3>
+          <p id="notes-empty-text"></p>
+        </div>
+      </section>
+
       <!-- Trang cá nhân -->
       <section class="profile" id="profile-view" hidden>
         <header class="profile-head">
@@ -182,7 +209,7 @@
     <form method="dialog" id="edit-form">
       <h2>Sửa công việc</h2>
       <label class="field"><span>Tiêu đề</span><input id="edit-title" required maxlength="200" /></label>
-      <label class="field"><span>Ghi chú</span><textarea id="edit-note" rows="3"></textarea></label>
+      <label class="field"><span>Ghi chú</span><textarea id="edit-note" rows="3" maxlength="2000" data-autosize></textarea></label>
       <div class="field-grid">
         <label class="field"><span>Bắt đầu</span><span class="dt is-empty"><input id="edit-start" type="datetime-local" /><span class="dt-ph">Chọn ngày giờ</span></span></label>
         <label class="field"><span>Thời lượng</span><select id="edit-duration"></select></label>
@@ -201,6 +228,48 @@
         <button type="submit" class="btn btn-primary" value="save">Lưu</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Trang soạn ghi chú (kiểu báo cáo) gắn với 1 việc, đường dẫn #note/<id> -->
+  <dialog id="note-dialog" class="note-dialog" aria-label="Ghi chú">
+    <!-- Một thanh duy nhất: quay lại · việc / các ghi chú · trạng thái lưu · mẫu báo cáo · xoá · Lưu -->
+    <header class="note-bar">
+      <button type="button" class="icon-btn note-back" id="note-close" aria-label="Đóng" title="Đóng (Esc)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+      </button>
+      <span class="note-crumb" id="note-task-title" title="Việc của ghi chú này"></span>
+      <nav class="note-tabs" id="note-tabs" role="tablist" aria-label="Các ghi chú của việc này"></nav>
+      <div class="note-bar-actions">
+        <span class="note-state" id="note-state" aria-live="polite"></span>
+        <button type="button" class="tool-btn" id="note-template" title="Chèn khung báo cáo (kèm thời gian hiện tại)">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M8 8.5h8M8 12.5h8M8 16.5h5"/></svg><span>Mẫu báo cáo</span>
+        </button>
+        <button type="button" class="tool-btn tool-icon tool-danger" id="note-delete" title="Xoá ghi chú này" aria-label="Xoá ghi chú này">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5"/></svg>
+        </button>
+        <button type="button" class="btn btn-primary note-save" id="note-save" title="Lưu (⌘/Ctrl + S)">Lưu</button>
+      </div>
+    </header>
+    <!-- Vùng viết: tên + nội dung cuộn chung, cột giữa -->
+    <div class="note-scroll" id="note-scroll">
+      <div class="note-sheet">
+        <input id="note-name" class="note-name" maxlength="200" placeholder="Không tên" aria-label="Tên ghi chú" autocomplete="off" />
+        <textarea id="note-editor" maxlength="50000" spellcheck="false" rows="1" aria-label="Nội dung ghi chú"
+          placeholder="Bắt đầu viết…"></textarea>
+        <button type="button" class="note-tpl-hint" id="note-tpl-hint">📋 Dùng mẫu báo cáo</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Hỏi khi đóng / chuyển ghi chú mà còn thay đổi chưa lưu -->
+  <dialog id="unsaved-dialog" class="dialog unsaved-dialog" aria-labelledby="unsaved-title">
+    <h2 id="unsaved-title">Lưu thay đổi?</h2>
+    <p>Ghi chú “<b id="unsaved-name"></b>” có thay đổi chưa lưu. Bạn có muốn lưu trước khi đóng không?</p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" id="unsaved-cancel">Huỷ</button>
+      <button type="button" class="btn btn-ghost btn-danger-text" id="unsaved-discard">Không lưu</button>
+      <button type="button" class="btn btn-primary" id="unsaved-save">Lưu</button>
+    </div>
   </dialog>
 
   <!-- Màn hình đăng nhập / đăng ký -->
@@ -233,6 +302,7 @@
   <script src="js/task-sync.js"></script>
   <script src="js/push-sync.js"></script>
   <script src="js/profile.js"></script>
+  <script src="js/notes.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
