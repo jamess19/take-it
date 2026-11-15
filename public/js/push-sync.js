@@ -79,7 +79,5 @@ const PushSync = (() => {
     }
   }
 
-  const test = () => Api.request("POST", "/api/push/test");
-
-  return { supported, enable, init, disable, sync, test, isActive: () => active };
+  return { supported, enable, init, disable, sync, isActive: () => active };
 })();

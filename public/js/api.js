@@ -53,6 +53,7 @@ const Api = (() => {
     logout,
     isLoggedIn: () => !!token(),
     email: () => Storage.loadValue(EMAIL_KEY),
+    setEmail: (email) => Storage.saveValue(EMAIL_KEY, email),
     onUnauthorized: (fn) => { onUnauthorized = fn; },
   };
 })();

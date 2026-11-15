@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from . import api_push, api_tasks, auth, store
+from . import api_me, api_push, api_tasks, auth, store
 
 log = logging.getLogger("server")
 
@@ -53,6 +53,7 @@ def healthz():
 
 
 app.include_router(auth.router)
+app.include_router(api_me.router)
 app.include_router(api_tasks.router)
 app.include_router(api_push.router)
 
@@ -60,8 +61,9 @@ app.include_router(api_push.router)
 @app.middleware("http")
 async def no_cache_service_worker(request, call_next):
     response = await call_next(request)
-    # sw.js không được cache để trình duyệt luôn nhận bản service worker mới
-    if request.url.path.endswith("/sw.js"):
+    # File giao diện: trình duyệt phải hỏi lại server mỗi lần (file không đổi thì server trả 304, không tải lại),
+    # tránh trình duyệt tự giữ bản JS/CSS cũ sau khi cập nhật app
+    if not request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-cache"
     return response
 

@@ -41,9 +41,11 @@ def _load_vapid() -> Vapid02:
     pem = vapid.private_key.private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
     ).decode()
-    store.set_meta("vapid_private_pem", pem)
-    log.info("Đã sinh khoá VAPID mới và lưu vào kho lưu trữ")
-    return vapid
+    # Nhiều tiến trình cùng khởi động: chỉ khoá ghi đầu tiên được giữ, các tiến trình khác dùng chung khoá đó
+    saved = store.set_meta_if_absent("vapid_private_pem", pem)
+    if saved == pem:
+        log.info("Đã sinh khoá VAPID mới và lưu vào cơ sở dữ liệu")
+    return Vapid02.from_pem(saved.encode())
 
 
 _vapid = _load_vapid()

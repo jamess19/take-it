@@ -56,6 +56,10 @@ const TaskSync = (() => {
       const byId = new Map(current.map((t) => [t.id, t]));
       for (const [id, at] of sentAt) if (byId.get(id)?.updatedAt === at) dirty.delete(id);
       for (const id of [...dirty]) if (!byId.has(id)) dirty.delete(id);
+      // Tự lành: việc có trên máy mà server không có (server mất dữ liệu, vd lúc deploy ghi đè) → gửi lại.
+      // Không gửi ngay để tránh vòng lặp; lượt đồng bộ kế tiếp (thay đổi mới / mỗi phút / mở lại app) sẽ gửi.
+      const onServer = new Set(res.tasks.map((t) => t.id));
+      for (const t of current) if (!onServer.has(t.id)) dirty.add(t.id);
       persist();
 
       hooks.setTasks(merge(current, res.tasks));

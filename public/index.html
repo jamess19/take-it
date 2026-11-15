@@ -19,50 +19,51 @@
 </head>
 <body>
   <div class="app">
-    <!-- Thanh bên: bộ lọc, quyền thông báo, giao diện -->
-    <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-logo">✓</span>
-        <span class="brand-name">Việc cần làm</span>
+    <!-- Thanh trên cùng cho điện thoại: ☰ mở sidebar dạng ngăn kéo -->
+    <header class="mobile-bar">
+      <button class="icon-btn menu-btn" id="menu-btn" type="button" aria-label="Mở menu" aria-expanded="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <span class="brand-logo">✓</span>
+      <span class="brand-name">Việc cần làm</span>
+      <button class="avatar mobile-avatar" id="mobile-avatar" type="button" data-nav="profile" aria-label="Trang cá nhân" hidden></button>
+    </header>
+
+    <!-- Thanh bên: người dùng · tìm kiếm · điều hướng · đăng xuất + chế độ tối. Thu gọn được còn cột icon -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-head">
+        <button class="sb-user" type="button" data-nav="profile" title="Trang cá nhân">
+          <span class="avatar" id="user-avatar"></span>
+          <span class="sb-text sb-user-text"><b id="user-name"></b><small id="user-email"></small></span>
+        </button>
       </div>
 
-      <nav class="filters" id="filters">
-        <button class="filter active" data-filter="all"><span>📋 Tất cả</span><b data-count="all">0</b></button>
-        <button class="filter" data-filter="today"><span>☀️ Hôm nay</span><b data-count="today">0</b></button>
-        <button class="filter" data-filter="upcoming"><span>📅 Sắp tới</span><b data-count="upcoming">0</b></button>
-        <button class="filter" data-filter="overdue"><span>⚠️ Quá hạn</span><b data-count="overdue">0</b></button>
-        <button class="filter" data-filter="done"><span>✅ Đã xong</span><b data-count="done">0</b></button>
+      <nav class="sb-nav" aria-label="Điều hướng">
+        <button class="nav-item" type="button" data-nav="tasks" id="nav-tasks" title="Công việc"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span class="sb-text">Công việc</span><b class="has-alert" id="nav-overdue" title="Việc quá hạn"></b></button>
+        <button class="nav-item" type="button" data-nav="profile" id="nav-profile" title="Trang cá nhân"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span class="sb-text">Trang cá nhân</span></button>
       </nav>
 
-      <div class="account" id="account" hidden>
-        <div class="account-info">
-          <span class="account-email" id="account-email"></span>
-          <span class="sync-status" id="sync-status"></span>
-        </div>
-        <button class="btn btn-ghost btn-sm" id="logout">Đăng xuất</button>
-      </div>
-
-      <div class="notify-card" id="notify-card" hidden>
+      <div class="notify-card sb-text" id="notify-card" hidden>
         <p>Bật thông báo để được nhắc kể cả khi đang ở tab khác.</p>
         <button class="btn btn-primary btn-sm" id="enable-notify">Bật thông báo</button>
       </div>
 
-      <div class="sidebar-footer">
-        <button class="btn btn-ghost btn-sm" id="theme-toggle" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện sáng/tối">🌓<span class="btn-text"> Giao diện</span></button>
-        <button class="btn btn-ghost btn-sm" id="test-alert" title="Thử chuông nhắc">🔔 Thử nhắc</button>
+      <div class="sb-bottom">
+        <small class="sync-status sb-text" id="sync-status"></small>
+        <button class="nav-item nav-danger" type="button" id="logout" title="Đăng xuất"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 16l-4-4 4-4M6 12h10"/></svg><span class="sb-text">Đăng xuất</span></button>
+        <div class="theme-row" title="Chế độ tối">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><span class="sb-text">Chế độ tối</span>
+          <button class="switch" id="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Chế độ tối"><span></span></button>
+        </div>
       </div>
     </aside>
+    <div class="backdrop" id="backdrop" hidden></div>
 
     <main class="main">
+      <div id="tasks-view">
       <header class="topbar">
         <div>
           <h1 id="view-title">Tất cả</h1>
           <p class="subtitle" id="today-label"></p>
         </div>
-        <label class="search">
-          <span aria-hidden="true">🔍</span>
-          <input id="search" type="search" placeholder="Tìm công việc…" title="Phím tắt: /" autocomplete="off" />
-        </label>
       </header>
 
       <!-- Form thêm nhanh -->
@@ -107,6 +108,21 @@
         </div>
       </form>
 
+      <!-- Lọc theo trạng thái + tìm kiếm trong danh sách việc -->
+      <div class="list-tools">
+        <label class="search-box" title="Phím tắt: /">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="search" type="search" placeholder="Tìm trong danh sách việc…" autocomplete="off" />
+        </label>
+      <nav class="filter-bar" id="filters" aria-label="Lọc theo trạng thái">
+        <button class="filter active" data-filter="all">Tất cả <b data-count="all"></b></button>
+        <button class="filter" data-filter="today">Hôm nay <b data-count="today"></b></button>
+        <button class="filter" data-filter="upcoming">Sắp tới <b data-count="upcoming"></b></button>
+        <button class="filter" data-filter="overdue">Quá hạn <b data-count="overdue"></b></button>
+        <button class="filter" data-filter="done">Đã xong <b data-count="done"></b></button>
+      </nav>
+      </div>
+
       <div class="progress" id="progress">
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
         <span id="progress-text"></span>
@@ -119,6 +135,45 @@
         <h3 id="empty-title">Chưa có việc nào</h3>
         <p id="empty-text">Thêm việc đầu tiên ở ô phía trên nhé.</p>
       </div>
+      </div>
+
+      <!-- Trang cá nhân -->
+      <section class="profile" id="profile-view" hidden>
+        <header class="profile-head">
+          <span class="avatar avatar-lg" id="profile-avatar"></span>
+          <div>
+            <h1 id="profile-title">Trang cá nhân</h1>
+            <p class="subtitle" id="profile-sub"></p>
+          </div>
+        </header>
+
+        <form class="card" id="profile-form" autocomplete="off">
+          <h2>Thông tin cơ bản</h2>
+          <label class="field"><span>Tên hiển thị</span><input id="pf-name" maxlength="60" placeholder="Tên của bạn" /></label>
+          <div class="field"><span>Ảnh đại diện</span><div class="avatar-grid" id="pf-avatars" role="radiogroup" aria-label="Ảnh đại diện"></div></div>
+          <label class="field"><span>Ghi chú</span><textarea id="pf-note" rows="3" maxlength="500" placeholder="Vài dòng về bạn, mục tiêu…"></textarea></label>
+          <p class="form-error" role="alert" hidden></p>
+          <div class="card-actions"><button class="btn btn-primary" type="submit">Lưu thay đổi</button></div>
+        </form>
+
+        <form class="card" id="email-form">
+          <h2>Email đăng nhập</h2>
+          <label class="field"><span>Email mới</span><input id="pf-email" type="email" required maxlength="254" autocomplete="email" /></label>
+          <label class="field"><span>Mật khẩu hiện tại</span><input id="pf-email-pw" type="password" required maxlength="200" autocomplete="current-password" /></label>
+          <p class="form-error" role="alert" hidden></p>
+          <div class="card-actions"><button class="btn btn-primary" type="submit">Đổi email</button></div>
+        </form>
+
+        <form class="card" id="password-form">
+          <h2>Mật khẩu</h2>
+          <label class="field"><span>Mật khẩu hiện tại</span><input id="pf-cur-pw" type="password" required maxlength="200" autocomplete="current-password" /></label>
+          <label class="field"><span>Mật khẩu mới</span><input id="pf-new-pw" type="password" required minlength="8" maxlength="200" autocomplete="new-password" /></label>
+          <label class="field"><span>Nhập lại mật khẩu mới</span><input id="pf-new-pw2" type="password" required minlength="8" maxlength="200" autocomplete="new-password" /></label>
+          <p class="field-hint">Ít nhất 8 ký tự. Đổi mật khẩu sẽ đăng xuất các thiết bị khác.</p>
+          <p class="form-error" role="alert" hidden></p>
+          <div class="card-actions"><button class="btn btn-primary" type="submit">Đổi mật khẩu</button></div>
+        </form>
+      </section>
     </main>
   </div>
 
@@ -177,6 +232,7 @@
   <script src="js/api.js"></script>
   <script src="js/task-sync.js"></script>
   <script src="js/push-sync.js"></script>
+  <script src="js/profile.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -98,39 +98,44 @@
   }
 
   // ---------- Hiển thị ----------
+  // Thẻ việc: 1 nhãn trạng thái nổi bật cạnh tiêu đề + 1 dòng thông tin chữ nhạt (không xếp nhiều nhãn ngang nhau)
   function taskHtml(t) {
     const now = Date.now();
     const cat = category(t, now);
     const start = t.due ? Reminder.startOf(t) : null;
     const end = t.due ? TimeUtils.parse(t.due) : null;
-    let timeChip = "";
-    let durationChip = "";
+    const hasDuration = t.duration > 0;
+    let status = null; // { text, cls }
+    const meta = [];
 
     if (cat === "doing") {
-      // Đang xử lý: tính theo lúc bấm Bắt đầu
-      // Tách 2 nhãn ngắn: trạng thái + giờ xong dự kiến (tránh 1 nhãn quá dài trên điện thoại)
-      let rel = "", cls = "is-doing", endChip = "";
-      if (end && t.duration > 0) {
-        if (end >= now) rel = ` · còn ${TimeUtils.duration(end - now)}`;
-        else { rel = ` · quá dự kiến ${TimeUtils.duration(now - end)}`; cls = "is-soon"; }
-        endChip = `<span class="chip chip-muted">🏁 Xong lúc ${TimeUtils.formatDue(end)}</span>`;
+      if (end && hasDuration) {
+        status = end >= now
+          ? { text: `▶ Đang làm · còn ${TimeUtils.duration(end - now)}`, cls: "is-doing" }
+          : { text: `▶ Quá dự kiến ${TimeUtils.duration(now - end)}`, cls: "is-soon" };
+        meta.push(`▶ Bắt đầu ${TimeUtils.formatDue(t.startedAt)}`, `🏁 Xong lúc ${TimeUtils.formatDue(end)}`);
+      } else {
+        status = { text: "▶ Đang làm", cls: "is-doing" };
+        meta.push(`▶ Bắt đầu ${TimeUtils.formatDue(t.startedAt)}`);
       }
-      timeChip = `<span class="chip ${cls}">▶ Đang xử lý${rel}</span>${endChip}`;
     } else if (t.due) {
-      let rel = "", cls = "";
+      meta.push(`⏰ ${TimeUtils.formatRange(start, end)}`);
+      if (hasDuration) meta.push(`⏳ ${TimeUtils.duration(t.duration * TimeUtils.MIN)}`);
       if (!t.done) {
-        if (cat === "overdue") { cls = "is-overdue"; rel = ` · quá giờ ${TimeUtils.duration(now - end)}, chưa bắt đầu`; }
-        else if (start <= now) { cls = "is-soon"; rel = " · đã đến giờ, chưa bắt đầu"; }
-        else { cls = start - now <= TimeUtils.HOUR ? "is-soon" : ""; rel = ` · bắt đầu sau ${TimeUtils.duration(start - now)}`; }
+        if (cat === "overdue") status = { text: `Quá giờ ${TimeUtils.duration(now - end)}`, cls: "is-overdue" };
+        else if (start <= now) status = { text: "Đã đến giờ", cls: "is-soon" };
+        else status = { text: `Sau ${TimeUtils.duration(start - now)}`, cls: start - now <= TimeUtils.HOUR ? "is-soon" : "" };
       }
-      timeChip = `<span class="chip ${cls}">⏰ ${TimeUtils.formatRange(start, end)}${rel}</span>`;
     }
-    if (t.duration > 0 && cat !== "doing") durationChip = `<span class="chip chip-muted">⏳ ${TimeUtils.duration(t.duration * TimeUtils.MIN)}</span>`;
+    if (t.due && !t.done && !t.startedAt && t.remindBefore >= 0) {
+      meta.push(t.snoozeUntil ? `🔔 báo lại ${TimeUtils.formatDue(t.snoozeUntil)}`
+        : t.remindBefore === 0 ? "🔔 đúng giờ" : `🔔 trước ${TimeUtils.duration(t.remindBefore * TimeUtils.MIN)}`);
+    }
+    // "Trung bình" là mặc định → không ghi; mức ưu tiên đã có vạch màu ở mép trái thẻ
+    if (t.priority !== "medium") meta.push(`<span class="prio-text prio-${t.priority}">Ưu tiên ${PRIORITY_LABEL[t.priority].toLowerCase()}</span>`);
 
-    const remind = t.due && !t.done && !t.startedAt && t.remindBefore >= 0
-      ? `<span class="chip chip-muted">🔔 ${t.snoozeUntil ? `Báo lại lúc ${TimeUtils.formatDue(t.snoozeUntil)}` : remindLabel(t.remindBefore)}</span>`
-      : "";
-    const prio = `<span class="chip chip-prio prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span>`;
+    const statusHtml = status ? `<span class="status ${status.cls}">${status.text}</span>` : "";
+    const metaHtml = meta.length ? `<div class="task-meta">${meta.map((m) => `<span>${m}</span>`).join("")}</div>` : "";
     const startBtn = !t.done && !t.startedAt ? `<div class="task-cta"><button class="start-btn" data-action="start">▶ Bắt đầu</button></div>` : "";
 
     return `
@@ -139,9 +144,12 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
         </button>
         <div class="task-body" data-action="edit">
-          <div class="task-title">${escapeHtml(t.title)}</div>
+          <div class="task-head">
+            <div class="task-title">${escapeHtml(t.title)}</div>
+            ${statusHtml}
+          </div>
           ${t.note ? `<div class="task-note">${escapeHtml(t.note)}</div>` : ""}
-          <div class="task-meta">${prio}${timeChip}${durationChip}${remind}</div>
+          ${metaHtml}
           ${startBtn}
         </div>
         <div class="task-actions">
@@ -165,9 +173,10 @@
     const tasks = live();
     for (const t of tasks) for (const f of Object.keys(counts)) if (matchesFilter(t, f)) counts[f]++;
     document.querySelectorAll("[data-count]").forEach((el) => {
-      el.textContent = counts[el.dataset.count];
+      el.textContent = counts[el.dataset.count] || ""; // số 0 không hiện cho đỡ rối
       el.classList.toggle("has-alert", el.dataset.count === "overdue" && counts.overdue > 0);
     });
+    $("#nav-overdue").textContent = counts.overdue || ""; // số việc quá hạn cạnh mục "Công việc" ở sidebar
 
     const total = tasks.length;
     const done = counts.done;
@@ -608,10 +617,53 @@
     if (show) $("#auth-email").focus();
   }
 
+  // Thẻ người dùng, ảnh đại diện, mục Trang cá nhân / Đăng xuất chỉ hiện khi đã đăng nhập
   function renderAccount() {
     const on = Api.available() && Api.isLoggedIn();
-    $("#account").hidden = !on;
-    if (on) $("#account-email").textContent = Api.email();
+    for (const id of ["#nav-profile", "#logout", "#mobile-avatar"]) $(id).hidden = !on;
+    Profile.render();
+    if (!on && currentView() === "profile") navigate("tasks");
+  }
+
+  // ---------- Điều hướng: trang công việc / trang cá nhân (theo #hash để nút Quay lại hoạt động) ----------
+  const currentView = () => (location.hash === "#profile" && Api.isLoggedIn() ? "profile" : "tasks");
+
+  function navigate(view) {
+    const hash = view === "profile" ? "#profile" : "";
+    if (location.hash !== hash) history.pushState(null, "", hash || location.pathname);
+    renderView();
+  }
+
+  function renderView() {
+    const view = currentView();
+    document.body.dataset.view = view;
+    $("#tasks-view").hidden = view !== "tasks";
+    $("#profile-view").hidden = view !== "profile";
+    $("#nav-tasks").classList.toggle("active", view === "tasks");
+    $("#nav-profile").classList.toggle("active", view === "profile");
+    if (view === "profile") Profile.show();
+    setDrawer(false);
+    window.scrollTo(0, 0);
+  }
+
+  // Điện thoại: sidebar thành ngăn kéo trượt, mở bằng nút ☰
+  function setDrawer(open) {
+    document.body.classList.toggle("drawer-open", open);
+    $("#backdrop").hidden = !open;
+    $("#menu-btn").setAttribute("aria-expanded", String(open));
+  }
+
+
+  function initNavigation() {
+    document.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-nav]");
+      if (el) navigate(el.dataset.nav);
+    });
+    window.addEventListener("popstate", renderView);
+    window.addEventListener("hashchange", renderView);
+    $("#menu-btn").onclick = () => setDrawer(!document.body.classList.contains("drawer-open"));
+    $("#backdrop").onclick = () => setDrawer(false);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") setDrawer(false); });
   }
 
   const SYNC_LABEL = {
@@ -633,14 +685,15 @@
       // Dữ liệu trên máy thuộc tài khoản khác → bỏ, tải dữ liệu của tài khoản này về
       state.tasks = [];
       TaskSync.clear();
-    } else if (!owner) {
-      // Việc tạo trên máy trước khi có tài khoản → đưa lên tài khoản, không mất
+    } else {
+      // Việc đang có trên máy (tạo trước khi có tài khoản, hoặc server đã mất) → gửi lên; server chỉ nhận bản mới hơn nên không ghi đè
       TaskSync.markAll(state.tasks);
     }
     Storage.saveValue(OWNER_KEY, email);
     Storage.saveTasks(state.tasks);
     showAuth(false);
     renderAccount();
+    Profile.refresh();
     render();
     await PushSync.init();
     await TaskSync.syncNow();
@@ -675,7 +728,9 @@
     TaskSync.clear();
     Storage.saveTasks([]);
     Storage.saveValue(OWNER_KEY, null);
+    Profile.clear();
     renderSyncStatus("idle");
+    navigate("tasks");
     renderAccount();
     render();
     showAuth(true);
@@ -692,20 +747,26 @@
     Api.onUnauthorized(() => { renderAccount(); setAuthMode("login"); showAuth(true); });
     $("#auth-form").onsubmit = submitAuth;
     $("#auth-switch").onclick = () => setAuthMode(authMode === "login" ? "register" : "login");
-    $("#logout").onclick = logout;
+    $("#logout").onclick = () => { setDrawer(false); logout(); };
+    Profile.init({
+      toast,
+      // Đổi email: cập nhật email phiên đăng nhập và chủ dữ liệu trên máy (tránh bị coi là tài khoản khác)
+      onEmailChanged: (email) => { Api.setEmail(email); Storage.saveValue(OWNER_KEY, email); },
+    });
     setAuthMode("login");
   }
 
   // ---------- Giao diện sáng/tối ----------
+  const isDark = () => (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark";
+
   function applyTheme(theme) {
     if (theme) document.documentElement.dataset.theme = theme;
     else delete document.documentElement.dataset.theme;
+    $("#theme-toggle").setAttribute("aria-checked", String(isDark()));
   }
 
   function toggleTheme() {
-    const current = document.documentElement.dataset.theme
-      || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const next = current === "dark" ? "light" : "dark";
+    const next = isDark() ? "light" : "dark";
     applyTheme(next);
     Storage.saveTheme(next);
   }
@@ -716,6 +777,7 @@
       const btn = e.target.closest("[data-filter]");
       if (!btn) return;
       state.filter = btn.dataset.filter;
+      navigate("tasks"); // đang ở trang cá nhân mà bấm bộ lọc → về danh sách việc
       document.querySelectorAll(".filter").forEach((b) => b.classList.toggle("active", b === btn));
       render();
     };
@@ -736,24 +798,11 @@
 
     $("#enable-notify").onclick = enableNotify;
     $("#theme-toggle").onclick = toggleTheme;
-    $("#test-alert").onclick = async () => {
-      Reminder.beep();
-      if (!PushSync.isActive()) {
-        Reminder.systemNotify("Thử nhắc việc", "Thông báo đang hoạt động 👍");
-        return toast("🔔 Chuông nhắc hoạt động. Thông báo đẩy từ server chưa bật.");
-      }
-      try {
-        await PushSync.test();
-        toast("🔔 Server đã gửi thông báo đẩy thử.");
-      } catch {
-        toast("Không gửi được thông báo đẩy thử. Kiểm tra server.", { variant: "toast-warn" });
-      }
-    };
 
     // Phím tắt: N = thêm việc, / = tìm kiếm
     document.addEventListener("keydown", (e) => {
       const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-      if (typing || e.metaKey || e.ctrlKey || e.altKey || $("#edit-dialog").open) return;
+      if (typing || e.metaKey || e.ctrlKey || e.altKey || $("#edit-dialog").open || currentView() !== "tasks") return;
       if (e.key === "n" || e.key === "N") { e.preventDefault(); $("#new-title").focus(); }
       if (e.key === "/") { e.preventDefault(); $("#search").focus(); }
     });
@@ -779,10 +828,13 @@
   initEvents();
   updateNotifyCard();
   initAccount();
+  initNavigation();
   initNotificationActions();
   registerServiceWorker();
   Reminder.start(tick);
   renderAccount();
+  renderView();
+  if (Api.isLoggedIn()) Profile.refresh();
   if (Api.available() && !Api.isLoggedIn()) {
     showAuth(true); // có server → bắt buộc đăng nhập để đồng bộ
   } else if (Api.isLoggedIn()) {

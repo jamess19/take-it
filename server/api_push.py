@@ -85,12 +85,3 @@ def set_reminders(body: RemindersIn, uid: str = Depends(current_user)):
     """App gửi TOÀN BỘ lịch nhắc sắp tới của tài khoản; server thay thế lịch cũ."""
     store.set_reminders(uid, [r.model_dump() for r in body.reminders])
     return {"ok": True, "count": len(body.reminders)}
-
-
-@router.post("/test")
-async def test_push(uid: str = Depends(current_user)):
-    payload = {"title": "Thử thông báo đẩy", "body": "Server gửi thông báo thành công 👍", "tag": "test"}
-    sent = await send_to_user(uid, payload)
-    if not sent:
-        raise HTTPException(502, "Không gửi được tới thiết bị nào")
-    return {"sent": sent}
