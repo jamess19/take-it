@@ -63,9 +63,9 @@ const Notes = (() => {
     autosize();
   }
 
-  /** Lưu ghi chú đang mở. Trả về true nếu đã lưu (hoặc không có gì để lưu). */
+  /** Lưu ghi chú đang mở. Trả về true nếu vừa ghi thay đổi, false nếu không có gì để lưu. */
   function saveCurrent() {
-    if (!current || !edited()) return true;
+    if (!current || !edited()) return false;
     const title = titleInput().value.trim().slice(0, 200) || defaultTitle(current.createdAt);
     const body = editor().value.slice(0, 50000);
     let n = find(current.id);
@@ -103,6 +103,7 @@ const Notes = (() => {
       $("#unsaved-discard").onclick = () => done("discard");
       $("#unsaved-cancel").onclick = () => done("cancel");
       ask.oncancel = (e) => { e.preventDefault(); done("cancel"); };
+      ask.onclick = (e) => { if (e.target === ask) done("cancel"); }; // bấm ra ngoài = Huỷ
       ask.showModal();
       $("#unsaved-save").focus();
     });
@@ -112,9 +113,33 @@ const Notes = (() => {
   async function leaveCurrent() {
     const choice = await askUnsaved();
     if (choice === "cancel") return false;
-    if (choice === "save") saveCurrent();
+    if (choice === "save") { if (saveCurrent()) savedJustNow = true; }
     else discardCurrent();
     return true;
+  }
+  let savedJustNow = false; // vừa chọn "Lưu" ở hộp thoại hỏi → báo sau khi trang đóng
+
+  // Báo "đã lưu" ngay trong trang soạn (toast chung của app bị lớp phủ của trang soạn che mất)
+  let flashTimer = null;
+  function flashSaved() {
+    const el = $("#note-saved-toast");
+    const btn = $("#note-save");
+    el.hidden = false;
+    el.classList.remove("show");
+    void el.offsetWidth; // chạy lại hiệu ứng khi bấm lưu liên tiếp
+    el.classList.add("show");
+    btn.classList.add("is-saved");
+    btn.textContent = "✓ Đã lưu";
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => {
+      el.classList.remove("show");
+      btn.classList.remove("is-saved");
+      btn.textContent = "Lưu";
+    }, 1600);
+  }
+
+  function saveWithFeedback() {
+    if (saveCurrent()) flashSaved();
   }
 
   // Đổi đường dẫn sang ghi chú khác (giữ 1 mục lịch sử cho cả phiên soạn)
@@ -159,7 +184,9 @@ const Notes = (() => {
   }
 
   async function close() {
+    savedJustNow = false;
     if (!(await leaveCurrent())) return;
+    if (savedJustNow) deps.toast("✓ Đã lưu ghi chú", { timeout: 2500 });
     draft = null;
     current = null;
     if (idFromHash()) {
@@ -276,7 +303,7 @@ const Notes = (() => {
     const list = all
       .filter((n) => !q || [n.title, n.body, deps.findTask(n.taskId)?.title].some((x) => (x || "").toLowerCase().includes(q)))
       .sort((a, b) => b.updatedAt - a.updatedAt);
-    $("#notes-count").textContent = all.length ? `${all.length} ghi chú` : "";
+    $("#notes-total").textContent = q ? `${list.length}/${all.length}` : all.length || "";
     $("#notes-list").innerHTML = list.map((n) => {
       const t = deps.findTask(n.taskId);
       const alive = t && !t.deleted;
@@ -297,13 +324,13 @@ const Notes = (() => {
     if (empty) {
       $("#notes-empty-title").textContent = q ? "Không tìm thấy" : "Chưa có ghi chú nào";
       $("#notes-empty-text").textContent = q ? `Không có ghi chú nào khớp "${query}".`
-        : "Chọn một việc ở trên rồi bấm “Tạo ghi chú”, hoặc bấm 📝 Ghi chú trên thẻ việc.";
+        : "Tạo ghi chú ở khung phía trên, hoặc bấm 📝 Ghi chú trên thẻ việc.";
     }
     // Ô chọn việc để tạo ghi chú mới: việc chưa xong lên trước
     const sel = $("#notes-task");
     const keep = sel.value;
     const tasks = deps.liveTasks().sort((a, b) => Number(a.done) - Number(b.done) || b.createdAt - a.createdAt);
-    sel.innerHTML = `<option value="">Chọn việc để ghi chú…</option>` + tasks.map((t) =>
+    sel.innerHTML = `<option value="">Chọn việc…</option>` + tasks.map((t) =>
       `<option value="${t.id}">${t.done ? "✓ " : ""}${deps.escapeHtml(t.title)}</option>`).join("");
     if (tasks.some((t) => t.id === keep)) sel.value = keep;
     $("#notes-create").disabled = !sel.value;
@@ -313,12 +340,17 @@ const Notes = (() => {
   function init(d) {
     deps = d;
     $("#note-close").onclick = close;
-    $("#note-save").onclick = saveCurrent;
+    $("#note-save").onclick = saveWithFeedback;
     $("#note-delete").onclick = deleteCurrent;
     $("#note-template").onclick = insertTemplate;
     $("#note-tpl-hint").onclick = insertTemplate;
     // Bấm vào khoảng trống vùng viết thì đưa con trỏ vào nội dung
+    // Bấm ra ngoài trang soạn (vùng nền mờ) thì đóng — vẫn hỏi lưu nếu còn thay đổi
+    // (chỉ khi nhấn chuột cũng ở ngoài: bôi đen chữ rồi kéo ra ngoài thì không đóng)
+    let downOutside = false;
+    dlg().addEventListener("pointerdown", (e) => { downOutside = e.target === dlg(); });
     dlg().addEventListener("click", (e) => {
+      if (e.target === dlg() && downOutside) return close();
       if (e.target === $("#note-scroll") || e.target.classList.contains("note-sheet")) editor().focus();
     });
     titleInput().addEventListener("input", () => { refreshState(); });
@@ -333,7 +365,7 @@ const Notes = (() => {
     dlg().addEventListener("cancel", (e) => { e.preventDefault(); close(); });
     window.addEventListener("resize", () => { if (dlg().open) autosize(); });
     dlg().addEventListener("keydown", (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveCurrent(); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveWithFeedback(); }
     });
     // Đóng tab / tải lại trang khi còn thay đổi chưa lưu → trình duyệt hỏi
     window.addEventListener("beforeunload", (e) => { if (edited()) { e.preventDefault(); e.returnValue = ""; } });

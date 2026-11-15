@@ -143,17 +143,27 @@
         <header class="topbar">
           <div>
             <h1>Ghi chú</h1>
-            <p class="subtitle" id="notes-count"></p>
+            <p class="subtitle">Ghi chép trong quá trình làm từng việc</p>
           </div>
         </header>
-        <div class="notes-tools">
+        <!-- Khu 1: tạo ghi chú mới cho một việc -->
+        <section class="notes-new" aria-labelledby="notes-new-title">
+          <div class="notes-new-text">
+            <h2 id="notes-new-title">Tạo ghi chú mới</h2>
+            <p>Chọn một việc để bắt đầu ghi chú</p>
+          </div>
           <div class="notes-create">
             <select id="notes-task" aria-label="Việc cần ghi chú"></select>
-            <button type="button" class="btn btn-primary" id="notes-create" disabled>＋ Tạo ghi chú</button>
+            <button type="button" class="btn btn-primary" id="notes-create" disabled>＋ Tạo</button>
           </div>
+        </section>
+
+        <!-- Khu 2: tìm kiếm + danh sách ghi chú -->
+        <div class="notes-list-head">
+          <h2 class="group-title">Tất cả ghi chú <span id="notes-total"></span></h2>
           <label class="search-box">
             <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-            <input id="notes-search" type="search" placeholder="Tìm trong ghi chú…" autocomplete="off" />
+            <input id="notes-search" type="search" placeholder="Tìm theo tên, nội dung, việc…" autocomplete="off" />
           </label>
         </div>
         <ul class="notes-list" id="notes-list"></ul>
@@ -259,6 +269,7 @@
         <button type="button" class="note-tpl-hint" id="note-tpl-hint">📋 Dùng mẫu báo cáo</button>
       </div>
     </div>
+    <div class="note-saved-toast" id="note-saved-toast" role="status" hidden>✓ Đã lưu</div>
   </dialog>
 
   <!-- Hỏi khi đóng / chuyển ghi chú mà còn thay đổi chưa lưu -->
