@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Việc cần làm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Cài như app trên điện thoại (PWA) -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <meta name="theme-color" content="#4d9de0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Việc cần làm" />
+</head>
+<body>
+  <div class="app">
+    <!-- Thanh bên: bộ lọc, quyền thông báo, giao diện -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-logo">✓</span>
+        <span class="brand-name">Việc cần làm</span>
+      </div>
+
+      <nav class="filters" id="filters">
+        <button class="filter active" data-filter="all"><span>📋 Tất cả</span><b data-count="all">0</b></button>
+        <button class="filter" data-filter="today"><span>☀️ Hôm nay</span><b data-count="today">0</b></button>
+        <button class="filter" data-filter="upcoming"><span>📅 Sắp tới</span><b data-count="upcoming">0</b></button>
+        <button class="filter" data-filter="overdue"><span>⚠️ Quá hạn</span><b data-count="overdue">0</b></button>
+        <button class="filter" data-filter="done"><span>✅ Đã xong</span><b data-count="done">0</b></button>
+      </nav>
+
+      <div class="notify-card" id="notify-card" hidden>
+        <p>Bật thông báo để được nhắc kể cả khi đang ở tab khác.</p>
+        <button class="btn btn-primary btn-sm" id="enable-notify">Bật thông báo</button>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost btn-sm" id="theme-toggle" title="Đổi giao diện sáng/tối">🌓 Giao diện</button>
+        <button class="btn btn-ghost btn-sm" id="test-alert" title="Thử chuông nhắc">🔔 Thử nhắc</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="view-title">Tất cả</h1>
+          <p class="subtitle" id="today-label"></p>
+        </div>
+        <label class="search">
+          <span aria-hidden="true">🔍</span>
+          <input id="search" type="search" placeholder="Tìm công việc…  ( / )" autocomplete="off" />
+        </label>
+      </header>
+
+      <!-- Form thêm nhanh -->
+      <form class="composer" id="composer" autocomplete="off">
+        <div class="composer-row">
+          <input id="new-title" class="composer-title" placeholder="Thêm việc mới… (nhấn N)" maxlength="200" required />
+          <button type="submit" class="btn btn-primary">Thêm</button>
+        </div>
+
+        <div class="composer-details" id="composer-details">
+          <textarea id="new-note" rows="2" placeholder="Ghi chú (không bắt buộc)"></textarea>
+          <div class="field-grid">
+            <label class="field">
+              <span>Bắt đầu</span>
+              <input id="new-start" type="datetime-local" />
+            </label>
+            <label class="field">
+              <span>Thời lượng dự kiến</span>
+              <select id="new-duration"></select>
+            </label>
+            <label class="field">
+              <span>Nhắc trước giờ bắt đầu</span>
+              <select id="new-remind"></select>
+            </label>
+            <label class="field">
+              <span>Độ ưu tiên</span>
+              <select id="new-priority">
+                <option value="low">Thấp</option>
+                <option value="medium" selected>Trung bình</option>
+                <option value="high">Cao</option>
+              </select>
+            </label>
+          </div>
+          <p class="end-preview" id="new-end" hidden></p>
+          <div class="quick-dates">
+            <span>Chọn nhanh:</span>
+            <button type="button" class="chip-btn" data-quick="1h">+1 giờ</button>
+            <button type="button" class="chip-btn" data-quick="tonight">Tối nay 20:00</button>
+            <button type="button" class="chip-btn" data-quick="tomorrow">Mai 09:00</button>
+            <button type="button" class="chip-btn" data-quick="clear">Bỏ thời gian</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="progress" id="progress">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <span id="progress-text"></span>
+      </div>
+
+      <section id="list" class="list" aria-live="polite"></section>
+
+      <div class="empty" id="empty" hidden>
+        <div class="empty-icon">🌤️</div>
+        <h3 id="empty-title">Chưa có việc nào</h3>
+        <p id="empty-text">Thêm việc đầu tiên ở ô phía trên nhé.</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- Hộp thoại sửa công việc -->
+  <dialog id="edit-dialog" class="dialog">
+    <form method="dialog" id="edit-form">
+      <h2>Sửa công việc</h2>
+      <label class="field"><span>Tiêu đề</span><input id="edit-title" required maxlength="200" /></label>
+      <label class="field"><span>Ghi chú</span><textarea id="edit-note" rows="3"></textarea></label>
+      <div class="field-grid">
+        <label class="field"><span>Bắt đầu</span><input id="edit-start" type="datetime-local" /></label>
+        <label class="field"><span>Thời lượng dự kiến</span><select id="edit-duration"></select></label>
+        <label class="field"><span>Nhắc trước giờ bắt đầu</span><select id="edit-remind"></select></label>
+        <label class="field"><span>Độ ưu tiên</span>
+          <select id="edit-priority">
+            <option value="low">Thấp</option>
+            <option value="medium">Trung bình</option>
+            <option value="high">Cao</option>
+          </select>
+        </label>
+      </div>
+      <p class="end-preview" id="edit-end" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" id="edit-cancel">Huỷ</button>
+        <button type="submit" class="btn btn-primary" value="save">Lưu</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" aria-live="assertive"></div>
+
+  <!-- Script thường (không dùng ES module) để mở thẳng file vẫn chạy -->
+  <script src="js/time-utils.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/reminder.js"></script>
+  <script src="js/push-sync.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

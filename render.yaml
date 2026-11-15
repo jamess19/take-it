@@ -1,0 +1,20 @@
+# Cấu hình deploy trên Render (Blueprint). Render đọc file này khi tạo service từ repo GitHub.
+services:
+  - type: web
+    name: viec-can-lam
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.2
+      # Chuỗi kết nối Postgres (Neon) — nhập trên giao diện Render, không ghi vào code
+      - key: DATABASE_URL
+        sync: false
+      # Địa chỉ liên hệ cho dịch vụ đẩy, dạng mailto:email-cua-ban@example.com
+      - key: VAPID_SUBJECT
+        sync: false
