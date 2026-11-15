@@ -1,5 +1,6 @@
-// Service worker: cache file để app chạy offline, và xử lý khi bấm vào thông báo.
-const CACHE = "todo-cache-v5";
+// Service worker: cache file để app chạy offline, nhận thông báo đẩy và xử lý nút bấm trên thông báo.
+importScripts("js/alert-actions.js");
+const CACHE = "todo-cache-v10";
 const ASSETS = [
   "./",
   "index.html",
@@ -7,6 +8,9 @@ const ASSETS = [
   "js/time-utils.js",
   "js/storage.js",
   "js/reminder.js",
+  "js/alert-actions.js",
+  "js/api.js",
+  "js/task-sync.js",
   "js/push-sync.js",
   "js/app.js",
   "manifest.webmanifest",
@@ -52,17 +56,28 @@ self.addEventListener("push", (event) => {
       icon: "icons/icon-192.png",
       badge: "icons/icon-192.png",
       requireInteraction: true,
+      data: { taskId: data.taskId, kind: data.kind },
+      // Nút bấm trên thông báo (iPhone không hiển thị nút → bấm thông báo sẽ mở app kèm nút)
+      actions: (ALERT_ACTIONS[data.kind] || []).map((a) => ({ action: a.action, title: a.label })),
     })
   );
 });
 
-// Bấm vào thông báo: mở lại app
+// Bấm vào thông báo hoặc nút trên thông báo: chuyển thao tác cho app xử lý
 self.addEventListener("notificationclick", (event) => {
+  const { taskId, kind } = event.notification.data || {};
+  const act = event.action || "open";
   event.notification.close();
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      if (list.length) return list[0].focus();
-      return self.clients.openWindow("./");
-    })
-  );
+  if (act === "dismiss") return;
+  event.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    if (list.length) {
+      await list[0].focus();
+      if (taskId) list[0].postMessage({ type: "alert-action", act, taskId, kind });
+      return;
+    }
+    // App đang tắt → mở app, truyền thao tác qua địa chỉ
+    const q = taskId ? `?act=${encodeURIComponent(act)}&task=${encodeURIComponent(taskId)}&kind=${encodeURIComponent(kind || "")}` : "";
+    await self.clients.openWindow("./" + q);
+  })());
 });

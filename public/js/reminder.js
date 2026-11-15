@@ -87,16 +87,18 @@ const Reminder = (() => {
   }
 
   // Ưu tiên gửi qua service worker (bắt buộc trên iPhone/Android), nếu không có thì dùng Notification thường
-  async function systemNotify(title, body, onClick) {
+  // extra: { tag, data, actions } — nút bấm chỉ hiện khi gửi qua service worker (Chrome/Android/máy tính)
+  async function systemNotify(title, body, extra = {}) {
     if (!canNotify()) return;
-    const options = { body, tag: title + body, icon: "icons/icon-192.png", badge: "icons/icon-192.png", requireInteraction: true };
+    const options = { body, tag: title + body, icon: "icons/icon-192.png", badge: "icons/icon-192.png", requireInteraction: true, ...extra };
     try {
       if ("serviceWorker" in navigator) {
         const reg = await navigator.serviceWorker.getRegistration();
         if (reg) { await reg.showNotification(title, options); return; }
       }
+      delete options.actions; // Notification thường không hỗ trợ nút
       const n = new Notification(title, options);
-      n.onclick = () => { window.focus(); onClick && onClick(); n.close(); };
+      n.onclick = () => { window.focus(); n.close(); };
     } catch { /* trình duyệt không hỗ trợ: vẫn còn toast + chuông trong app */ }
   }
 
@@ -105,6 +107,7 @@ const Reminder = (() => {
    * kind: "before" (sắp bắt đầu) | "start" (đến giờ bắt đầu) | "due" (hết thời gian dự kiến)
    *       | "snooze" (hết thời gian báo lại).
    * Mỗi mốc chỉ nhắc 1 lần; mốc muộn hơn đã qua thì bỏ qua các mốc sớm hơn.
+   * Việc đã bấm "Bắt đầu" (startedAt) thì không nhắc "sắp bắt đầu"/"đến giờ" nữa.
    * Trả về true nếu có thay đổi trạng thái cần lưu.
    */
   function check(tasks, onAlert) {
@@ -112,7 +115,7 @@ const Reminder = (() => {
     let changed = false;
 
     for (const t of tasks) {
-      if (t.done || !t.due || t.remindBefore < 0) continue;
+      if (t.deleted || t.done || !t.due || t.remindBefore < 0) continue;
       const start = startOf(t);
       const end = TimeUtils.parse(t.due);
 
@@ -125,13 +128,17 @@ const Reminder = (() => {
         continue;
       }
 
-      if (!t.notifiedDue && now >= end) {
+      const started = !!t.startedAt;
+      // Không có thời lượng (kết thúc = bắt đầu) mà đã bắt đầu rồi thì không còn gì để nhắc
+      if (!t.notifiedDue && now >= end && (end > start || !started)) {
         t.notifiedDue = t.notifiedStart = t.notifiedBefore = true;
         changed = true;
         // Không có thời lượng thì giờ bắt đầu = giờ kết thúc → chỉ báo "đến giờ bắt đầu"
         if (now - end < STALE_LIMIT) onAlert(t, end > start ? "due" : "start");
         continue;
       }
+
+      if (started) continue;
 
       if (!t.notifiedStart && now >= start) {
         t.notifiedStart = t.notifiedBefore = true;

@@ -82,11 +82,39 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .filter.active b { background: var(--accent); color: var(--on-accent); }
 .filter b.has-alert { background: var(--danger); color: #fff; }
 
+/* ===== Tài khoản ===== */
+.account { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 12px; }
+.account-info { display: grid; min-width: 0; }
+.account-email { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sync-status { font-size: 12px; color: var(--text-2); }
+.sync-status[data-state="error"] { color: var(--danger); }
+.sync-status[data-state="offline"] { color: var(--warn); }
+
+.auth {
+  position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px;
+  background: var(--bg); overflow-y: auto;
+}
+.auth-card {
+  width: min(400px, 100%); display: grid; gap: 14px; padding: 28px 24px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow);
+}
+.auth-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
+.auth-card h2 { margin: 6px 0 0; font-size: 22px; }
+.auth-hint { margin: 0; color: var(--text-2); font-size: 13px; }
+.auth-error { margin: 0; padding: 9px 12px; border-radius: 10px; background: var(--danger-soft); color: var(--danger); font-size: 14px; }
+.auth-submit { width: 100%; padding: 11px; }
+.auth-submit:disabled { opacity: .6; cursor: wait; }
+.auth-switch { margin: 0; text-align: center; font-size: 14px; color: var(--text-2); }
+.link-btn { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; cursor: pointer; }
+.auth .field input { font-size: 16px; } /* tránh iOS tự zoom */
+
 .notify-card { padding: 14px; border-radius: 12px; background: var(--accent-soft); font-size: 13px; }
 .notify-card p { margin: 0 0 10px; }
 .sidebar-footer { margin-top: auto; display: flex; gap: 6px; flex-wrap: wrap; }
 
-.main { padding: 32px clamp(16px, 4vw, 48px) 80px; max-width: 860px; width: 100%; }
+/* Căn giữa vùng nội dung để màn hình rộng không bị thừa khoảng trống bên phải */
+.main { padding: 32px clamp(16px, 4vw, 48px) 80px; max-width: 1000px; width: 100%; margin: 0 auto; }
 
 .topbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .topbar h1 { margin: 0; font-size: 28px; letter-spacing: -.02em; }
@@ -129,7 +157,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .composer-details textarea:focus, .field input:focus, .field select:focus, .field textarea:focus {
   border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
 }
-.field { display: grid; gap: 5px; font-size: 13px; color: var(--text-2); font-weight: 500; }
+/* Ô ngày giờ: iOS giữ chiều rộng riêng gây tràn ngang → ép co theo khung */
+input[type="datetime-local"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; min-height: 42px; }
+input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; }
+.dt { position: relative; display: block; min-width: 0; }
+.dt-ph { display: none; position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-2); font-size: 16px; font-weight: 400; pointer-events: none; }
+/* Chỉ Safari iOS cần chữ gợi ý (Chrome đã hiện dd/mm/yyyy khi ô trống) */
+@supports (-webkit-touch-callout: none) { .dt.is-empty .dt-ph { display: block; } }
+.field select { min-width: 0; }
+.field { min-width: 0; display: grid; gap: 5px; font-size: 13px; color: var(--text-2); font-weight: 500; }
 .field > input, .field > select, .field > textarea { color: var(--text); font-weight: 400; font-size: 15px; }
 .field-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 10px; }
 .end-preview { margin: -2px 2px 0; font-size: 13px; font-weight: 600; color: var(--accent); }
@@ -189,6 +226,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chip.is-soon { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
 .chip-prio.prio-high { color: var(--danger); font-weight: 600; }
 .chip-prio.prio-medium { color: var(--warn); }
+.task-cta { margin-top: 10px; }
+.start-btn {
+  border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent);
+  border-radius: 99px; padding: 4px 11px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.start-btn:hover { background: var(--accent); color: var(--on-accent); }
+.task.is-started { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
 .task-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
 .task:hover .task-actions, .task:focus-within .task-actions { opacity: 1; }
 
@@ -238,7 +282,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ===== Điện thoại ===== */
 @media (max-width: 760px) {
-  .app { grid-template-columns: minmax(0, 1fr); }
+  /* align-content: start → nội dung ngắn thì không kéo giãn thanh trên cùng */
+  .app { grid-template-columns: minmax(0, 1fr); align-content: start; overflow-x: clip; }
+  .chip { white-space: normal; }
+  .btn-text { display: none; }
+  #theme-toggle { font-size: 16px; padding: 6px 10px; }
   .sidebar, .main { min-width: 0; }
   .notify-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
   .notify-card p { margin: 0; flex: 1; }
@@ -248,7 +296,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
     padding: calc(env(safe-area-inset-top) + 12px) 16px 10px;
     border-right: 0; border-bottom: 1px solid var(--border);
   }
-  .brand { padding: 0 130px 0 0; min-height: 32px; }
+  .brand { padding: 0 60px 0 0; min-height: 32px; }
   .filters { flex-direction: row; overflow-x: auto; gap: 6px; margin: 0 -16px; padding: 0 16px; scrollbar-width: none; }
   .filters::-webkit-scrollbar { display: none; }
   .filter { flex: none; gap: 8px; border: 1px solid var(--border); padding: 6px 10px; }
@@ -257,8 +305,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .main { padding: 20px 16px calc(env(safe-area-inset-bottom) + 80px); }
   .topbar h1 { font-size: 24px; }
   .search { min-width: 0; width: 100%; }
-  .field-grid { grid-template-columns: 1fr 1fr; }
+  /* Bắt đầu chiếm 1 dòng; thời lượng / nhắc trước / ưu tiên chung 1 dòng */
+  .field-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .field-grid .field:first-child { grid-column: 1 / -1; }
+  .field > select { padding-left: 9px; padding-right: 4px; }
+  .composer-details { gap: 10px; padding: 10px 6px 4px; }
+  /* Chọn nhanh: 1 hàng, vuốt ngang */
+  .quick-dates { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
+  .quick-dates::-webkit-scrollbar { display: none; }
+  .quick-dates > span { display: none; }
+  .chip-btn { flex: none; }
+  .icon-btn { padding: 4px; }
   .composer-title, .field input, .field select, .field textarea, .composer-details textarea { font-size: 16px; } /* tránh iOS tự zoom */
   .task-actions { opacity: 1; }
   .toasts { left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 16px); width: auto; }

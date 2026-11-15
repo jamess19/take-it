@@ -29,5 +29,14 @@ const Storage = (() => {
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* bỏ qua */ }
   }
 
-  return { loadTasks, saveTasks, loadTheme, saveTheme };
+  // Giá trị chuỗi bất kỳ (token đăng nhập, mã thiết bị…); null = xoá
+  function loadValue(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+  }
+
+  function saveValue(key, value) {
+    try { value == null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* bỏ qua */ }
+  }
+
+  return { loadTasks, saveTasks, loadTheme, saveTheme, loadValue, saveValue };
 })();

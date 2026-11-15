@@ -3,7 +3,8 @@
   const $ = (sel) => document.querySelector(sel);
 
   const state = {
-    tasks: Storage.loadTasks(),
+    // Việc tạo trước khi có tính năng đồng bộ chưa có updatedAt → lấy createdAt
+    tasks: Storage.loadTasks().map((t) => ({ ...t, updatedAt: t.updatedAt || t.createdAt || Date.now() })),
     filter: "all",
     query: "",
   };
@@ -13,6 +14,7 @@
   const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
   const DEFAULT_REMIND = 15;
   const DEFAULT_DURATION = 30;
+  const OWNER_KEY = "todo.owner"; // email của tài khoản sở hữu dữ liệu đang lưu trên máy
 
   // ---------- Tiện ích ----------
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -21,10 +23,17 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
-  function save() {
+  // Lưu xuống máy; các việc truyền vào là việc vừa đổi → cập nhật mốc thời gian và đánh dấu để đồng bộ
+  function save(...changed) {
+    for (const t of changed) {
+      t.updatedAt = Date.now();
+      TaskSync.markDirty(t.id);
+    }
     Storage.saveTasks(state.tasks);
-    PushSync.sync(pushEvents());
   }
+
+  // Việc đang hiển thị (bỏ các việc đã xoá — chỉ còn giữ dấu xoá để đồng bộ)
+  const live = () => state.tasks.filter((t) => !t.deleted);
 
   function findTask(id) {
     return state.tasks.find((t) => t.id === id);
@@ -46,6 +55,7 @@
   // Dòng "→ Kết thúc dự kiến: ..." hiện dưới ô nhập giờ bắt đầu
   function updateEndPreview(startInput, durationSelect, previewEl) {
     const start = startInput.value;
+    startInput.closest(".dt")?.classList.toggle("is-empty", !start);
     const minutes = Number(durationSelect.value);
     previewEl.hidden = !start || !minutes;
     if (previewEl.hidden) return;
@@ -56,12 +66,12 @@
   // ---------- Phân loại ----------
   function category(t, now = Date.now()) {
     if (t.done) return "done";
+    if (t.startedAt) return "doing"; // đã bấm "Bắt đầu" → đang xử lý
     if (!t.due) return "nodate";
     const start = Reminder.startOf(t);
     const end = TimeUtils.parse(t.due);
-    if (end < now) return "overdue";
-    if (start <= now) return "doing"; // đã bắt đầu, chưa hết thời gian dự kiến
-    if (TimeUtils.isSameDay(start, now)) return "today";
+    if (end < now) return "overdue"; // hết khung giờ mà chưa bắt đầu
+    if (start <= now || TimeUtils.isSameDay(start, now)) return "today";
     return "upcoming";
   }
 
@@ -69,7 +79,7 @@
     const c = category(t);
     switch (filter) {
       case "all": return !t.done;
-      case "today": return c === "doing" || (!t.done && !!t.due && TimeUtils.isSameDay(Reminder.startOf(t), Date.now()));
+      case "today": return c === "doing" || c === "today";
       case "upcoming": return c === "upcoming";
       case "overdue": return c === "overdue";
       case "done": return t.done;
@@ -91,34 +101,48 @@
   function taskHtml(t) {
     const now = Date.now();
     const cat = category(t, now);
-    let dueChip = "";
+    const start = t.due ? Reminder.startOf(t) : null;
+    const end = t.due ? TimeUtils.parse(t.due) : null;
+    let timeChip = "";
     let durationChip = "";
-    if (t.due) {
-      const start = Reminder.startOf(t);
-      const end = TimeUtils.parse(t.due);
-      let cls = "", rel = "";
+
+    if (cat === "doing") {
+      // Đang xử lý: tính theo lúc bấm Bắt đầu
+      // Tách 2 nhãn ngắn: trạng thái + giờ xong dự kiến (tránh 1 nhãn quá dài trên điện thoại)
+      let rel = "", cls = "is-doing", endChip = "";
+      if (end && t.duration > 0) {
+        if (end >= now) rel = ` · còn ${TimeUtils.duration(end - now)}`;
+        else { rel = ` · quá dự kiến ${TimeUtils.duration(now - end)}`; cls = "is-soon"; }
+        endChip = `<span class="chip chip-muted">🏁 Xong lúc ${TimeUtils.formatDue(end)}</span>`;
+      }
+      timeChip = `<span class="chip ${cls}">▶ Đang xử lý${rel}</span>${endChip}`;
+    } else if (t.due) {
+      let rel = "", cls = "";
       if (!t.done) {
-        if (cat === "overdue") { cls = "is-overdue"; rel = ` · quá giờ ${TimeUtils.duration(now - end)}`; }
-        else if (cat === "doing") { cls = "is-doing"; rel = ` · ▶ đang làm, còn ${TimeUtils.duration(end - now)}`; }
+        if (cat === "overdue") { cls = "is-overdue"; rel = ` · quá giờ ${TimeUtils.duration(now - end)}, chưa bắt đầu`; }
+        else if (start <= now) { cls = "is-soon"; rel = " · đã đến giờ, chưa bắt đầu"; }
         else { cls = start - now <= TimeUtils.HOUR ? "is-soon" : ""; rel = ` · bắt đầu sau ${TimeUtils.duration(start - now)}`; }
       }
-      dueChip = `<span class="chip ${cls}">⏰ ${TimeUtils.formatRange(start, end)}${rel}</span>`;
-      if (end > start) durationChip = `<span class="chip chip-muted">⏳ ${TimeUtils.duration(end - start)}</span>`;
+      timeChip = `<span class="chip ${cls}">⏰ ${TimeUtils.formatRange(start, end)}${rel}</span>`;
     }
-    const remind = t.due && !t.done && t.remindBefore >= 0
+    if (t.duration > 0 && cat !== "doing") durationChip = `<span class="chip chip-muted">⏳ ${TimeUtils.duration(t.duration * TimeUtils.MIN)}</span>`;
+
+    const remind = t.due && !t.done && !t.startedAt && t.remindBefore >= 0
       ? `<span class="chip chip-muted">🔔 ${t.snoozeUntil ? `Báo lại lúc ${TimeUtils.formatDue(t.snoozeUntil)}` : remindLabel(t.remindBefore)}</span>`
       : "";
     const prio = `<span class="chip chip-prio prio-${t.priority}">${PRIORITY_LABEL[t.priority]}</span>`;
+    const startBtn = !t.done && !t.startedAt ? `<div class="task-cta"><button class="start-btn" data-action="start">▶ Bắt đầu</button></div>` : "";
 
     return `
-      <li class="task prio-${t.priority} ${t.done ? "is-done" : ""}" data-id="${t.id}">
+      <li class="task prio-${t.priority} ${t.done ? "is-done" : ""} ${cat === "doing" ? "is-started" : ""}" data-id="${t.id}">
         <button class="check" data-action="toggle" aria-label="${t.done ? "Đánh dấu chưa xong" : "Đánh dấu đã xong"}">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
         </button>
         <div class="task-body" data-action="edit">
           <div class="task-title">${escapeHtml(t.title)}</div>
           ${t.note ? `<div class="task-note">${escapeHtml(t.note)}</div>` : ""}
-          <div class="task-meta">${prio}${dueChip}${durationChip}${remind}</div>
+          <div class="task-meta">${prio}${timeChip}${durationChip}${remind}</div>
+          ${startBtn}
         </div>
         <div class="task-actions">
           <button class="icon-btn" data-action="edit" title="Sửa" aria-label="Sửa">✏️</button>
@@ -138,13 +162,14 @@
 
   function renderCounts() {
     const counts = { all: 0, today: 0, upcoming: 0, overdue: 0, done: 0 };
-    for (const t of state.tasks) for (const f of Object.keys(counts)) if (matchesFilter(t, f)) counts[f]++;
+    const tasks = live();
+    for (const t of tasks) for (const f of Object.keys(counts)) if (matchesFilter(t, f)) counts[f]++;
     document.querySelectorAll("[data-count]").forEach((el) => {
       el.textContent = counts[el.dataset.count];
       el.classList.toggle("has-alert", el.dataset.count === "overdue" && counts.overdue > 0);
     });
 
-    const total = state.tasks.length;
+    const total = tasks.length;
     const done = counts.done;
     $("#progress").hidden = total === 0;
     $("#progress-fill").style.width = total ? `${(done / total) * 100}%` : "0";
@@ -153,7 +178,7 @@
 
   function render() {
     const q = state.query.trim().toLowerCase();
-    const visible = state.tasks
+    const visible = live()
       .filter((t) => matchesFilter(t, state.filter))
       .filter((t) => !q || t.title.toLowerCase().includes(q) || (t.note || "").toLowerCase().includes(q))
       .sort(compare);
@@ -163,7 +188,7 @@
       const by = (c) => visible.filter((t) => category(t) === c);
       html =
         groupHtml("Quá hạn", by("overdue"), "group-overdue") +
-        groupHtml("Đang làm", by("doing"), "group-doing") +
+        groupHtml("Đang xử lý", by("doing"), "group-doing") +
         groupHtml("Hôm nay", by("today")) +
         groupHtml("Sắp tới", by("upcoming")) +
         groupHtml("Không có hạn", by("nodate"));
@@ -213,7 +238,7 @@
   function addTask(data) {
     const start = data.start || null;
     const duration = start ? Number(data.duration) || 0 : 0;
-    state.tasks.push({
+    const task = {
       id: uid(),
       title: data.title.trim(),
       note: data.note.trim(),
@@ -229,8 +254,9 @@
       notifiedStart: false,
       notifiedDue: false,
       snoozeUntil: null,
-    });
-    save();
+    };
+    state.tasks.push(task);
+    save(task);
     render();
   }
 
@@ -240,87 +266,193 @@
     t.done = !t.done;
     t.completedAt = t.done ? Date.now() : null;
     t.snoozeUntil = null;
-    save();
+    save(t);
     render();
     if (t.done) toast(`Đã xong: <b>${escapeHtml(t.title)}</b> 🎉`, { actions: [{ label: "Hoàn tác", onClick: () => toggleTask(id) }] });
   }
 
-  function deleteTask(id) {
-    const idx = state.tasks.findIndex((t) => t.id === id);
-    if (idx < 0) return;
-    const [removed] = state.tasks.splice(idx, 1);
-    save();
+  // Xoá = gắn dấu xoá (để thiết bị khác cũng xoá theo khi đồng bộ)
+  function setDeleted(id, deleted) {
+    const t = findTask(id);
+    if (!t) return null;
+    t.deleted = deleted;
+    save(t);
     render();
-    toast(`Đã xoá <b>${escapeHtml(removed.title)}</b>`, {
+    return t;
+  }
+
+  function deleteTask(id) {
+    const t = setDeleted(id, true);
+    if (!t) return;
+    toast(`Đã xoá <b>${escapeHtml(t.title)}</b>`, {
       timeout: 6000,
-      actions: [{ label: "Hoàn tác", primary: true, onClick: () => { state.tasks.splice(idx, 0, removed); save(); render(); } }],
+      actions: [{ label: "Hoàn tác", primary: true, onClick: () => setDeleted(id, false) }],
     });
   }
 
-  function snooze(id, minutes = 5) {
+  function snooze(id, minutes = 5, kind = null) {
     const t = findTask(id);
     if (!t) return;
     t.snoozeUntil = Date.now() + minutes * TimeUtils.MIN;
-    save();
+    t.snoozeKind = kind; // khi hết báo lại sẽ nhắc lại đúng loại này (vd: "đến giờ bắt đầu")
+    save(t);
     render();
   }
 
+  // Bấm "Bắt đầu": chuyển sang đang xử lý; giờ kết thúc dự kiến tính lại từ lúc bắt đầu thật
+  function startTask(id) {
+    const t = findTask(id);
+    if (!t || t.done || t.startedAt) return;
+    const now = Date.now();
+    t.startedAt = now;
+    t.snoozeUntil = null;
+    if (t.duration > 0) {
+      t.due = TimeUtils.addMinutes(TimeUtils.toLocalInput(new Date(now)), t.duration);
+      t.notifiedDue = false;
+    }
+    save(t);
+    render();
+    const end = t.duration > 0 ? ` — dự kiến xong ${TimeUtils.formatDue(TimeUtils.parse(t.due))}` : "";
+    toast(`▶ Đã bắt đầu: <b>${escapeHtml(t.title)}</b>${end}`);
+  }
+
+  // Gia hạn thời gian dự kiến của việc đang làm
+  function extendTask(id, minutes) {
+    const t = findTask(id);
+    if (!t || t.done || !t.due) return;
+    t.duration = (t.duration || 0) + minutes;
+    t.due = TimeUtils.addMinutes(t.due, minutes);
+    t.notifiedDue = false;
+    t.snoozeUntil = null;
+    save(t);
+    render();
+    toast(`Đã gia hạn ${minutes} phút — dự kiến xong ${TimeUtils.formatDue(TimeUtils.parse(t.due))}`);
+  }
+
+  function completeTask(id) {
+    const t = findTask(id);
+    if (t && !t.done) toggleTask(id);
+  }
+
   // ---------- Nhắc việc ----------
+  const ALERT_INFO = {
+    before: { icon: "⏰", heading: "Sắp bắt đầu", variant: "toast-warn" },
+    start: { icon: "▶️", heading: "Đến giờ bắt đầu", variant: "toast-alert" },
+    due: { icon: "⌛", heading: "Hết thời gian dự kiến", variant: "toast-alert" },
+    late: { icon: "⚠️", heading: "Quá giờ, chưa bắt đầu", variant: "toast-alert" },
+  };
+
+  // Loại nhắc thực tế theo trạng thái việc: báo lại → lặp lại loại cũ; hết giờ mà chưa bắt đầu → "late"
+  function resolveKind(t, kind) {
+    if (kind === "snooze") kind = t.snoozeKind || (t.startedAt ? "due" : "start");
+    if (kind === "due" && !t.startedAt) return "late";
+    return kind;
+  }
+
   // Nội dung lời nhắc tại thời điểm `at` (mặc định là bây giờ)
-  function alertText(t, kind, at = Date.now()) {
+  function alertText(t, rawKind, at = Date.now()) {
+    const kind = resolveKind(t, rawKind);
     const start = Reminder.startOf(t);
     const end = TimeUtils.parse(t.due);
-    const headings = { before: "Sắp bắt đầu", start: "Đến giờ bắt đầu", due: "Hết thời gian dự kiến", snooze: "Nhắc lại" };
-    const heading = headings[kind];
-    const range = TimeUtils.formatRange(start, end);
-    const detail =
-      kind === "before" ? `${range} · bắt đầu sau ${TimeUtils.duration(start - at)}`
-      : kind === "start" && end > start ? `${range} · dự kiến ${TimeUtils.duration(end - start)}`
-      : range;
-    return { heading, detail };
+    const planned = t.duration > 0 ? ` · dự kiến ${TimeUtils.duration(t.duration * TimeUtils.MIN)}` : "";
+    const detail = {
+      before: `Bắt đầu ${TimeUtils.formatDue(start)} (còn ${TimeUtils.duration(start - at)})${planned}`,
+      start: `${TimeUtils.formatRange(start, end)}${planned}`,
+      due: t.startedAt ? `Đã làm ${TimeUtils.duration(at - t.startedAt)} — xong chưa?` : "",
+      late: `Khung giờ ${TimeUtils.formatRange(start, end)} đã qua`,
+    }[kind];
+    const info = ALERT_INFO[kind];
+    const heading = (rawKind === "snooze" ? "Nhắc lại · " : "") + info.heading;
+    return { kind, heading, detail, icon: info.icon, variant: info.variant };
   }
 
   // Lịch các mốc nhắc trong tương lai, gửi lên server để đẩy thông báo kể cả khi app đã tắt
   function pushEvents() {
     const now = Date.now();
     const events = [];
-    const add = (t, kind, at) => {
+    const add = (t, rawKind, at) => {
       if (at <= now) return;
-      const { heading, detail } = alertText(t, kind, at);
-      events.push({ key: `${t.id}:${kind}`, at, title: `${heading}: ${t.title}`, body: detail });
+      const { kind, heading, detail, icon } = alertText(t, rawKind, at);
+      events.push({ key: `${t.id}:${rawKind}`, at, title: `${icon} ${heading}: ${t.title}`, body: detail, taskId: t.id, kind });
     };
-    for (const t of state.tasks) {
+    for (const t of live()) {
       if (t.done || !t.due || t.remindBefore < 0) continue;
       const start = Reminder.startOf(t);
       const end = TimeUtils.parse(t.due);
       if (t.snoozeUntil) { add(t, "snooze", t.snoozeUntil); continue; }
-      if (t.remindBefore > 0) add(t, "before", start - t.remindBefore * TimeUtils.MIN);
-      add(t, "start", start);
-      if (end > start) add(t, "due", end);
+      if (!t.startedAt) {
+        if (t.remindBefore > 0) add(t, "before", start - t.remindBefore * TimeUtils.MIN);
+        add(t, "start", start);
+      }
+      if (end > start || (t.startedAt && t.duration > 0)) add(t, "due", end);
     }
     return events;
   }
 
-  function onAlert(t, kind) {
-    const { heading, detail } = alertText(t, kind);
-    Reminder.beep();
-    Reminder.flashTitle(t.title);
-    // Đã bật thông báo đẩy thì server gửi thông báo hệ thống, tránh hiện 2 lần
-    if (!PushSync.isActive()) Reminder.systemNotify(`${heading}: ${t.title}`, detail);
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  // Thực hiện thao tác từ nút bấm (trong app hoặc trên thông báo hệ thống)
+  function runAlertAction(act, id, kind) {
+    if (act === "start") startTask(id);
+    else if (act === "done") completeTask(id);
+    else if (act === "snooze") snooze(id, 5, kind);
+    else if (act === "extend") extendTask(id, 15);
+  }
 
-    toast(`<div class="toast-heading">🔔 ${heading}</div><b>${escapeHtml(t.title)}</b><div class="toast-sub">${detail}</div>`, {
-      variant: kind === "before" ? "toast-warn" : "toast-alert",
+  // Ô nhắc trong app, nút bấm theo loại nhắc
+  function showAlertToast(t, rawKind) {
+    const { kind, heading, detail, icon, variant } = alertText(t, rawKind);
+    const actions = ALERT_ACTIONS[kind].map((a) => ({
+      label: a.label,
+      primary: a.primary,
+      onClick: () => runAlertAction(a.action, t.id, kind),
+    }));
+    toast(`<div class="toast-heading">${icon} ${heading}</div><b>${escapeHtml(t.title)}</b>${detail ? `<div class="toast-sub">${detail}</div>` : ""}`, {
+      variant,
       timeout: 0, // giữ đến khi người dùng xử lý
-      actions: [
-        { label: "Hoàn thành", primary: true, onClick: () => toggleTask(t.id) },
-        { label: "Báo lại 5 phút", onClick: () => snooze(t.id, 5) },
-      ],
+      actions,
     });
   }
 
+  function onAlert(t, rawKind) {
+    const { kind, heading, detail, icon } = alertText(t, rawKind);
+    Reminder.beep();
+    Reminder.flashTitle(t.title);
+    // Đã bật thông báo đẩy thì server gửi thông báo hệ thống, tránh hiện 2 lần
+    if (!PushSync.isActive()) {
+      Reminder.systemNotify(`${icon} ${heading}: ${t.title}`, detail, {
+        tag: `${t.id}:${rawKind}`,
+        data: { taskId: t.id, kind },
+        actions: ALERT_ACTIONS[kind].map((a) => ({ action: a.action, title: a.label })),
+      });
+    }
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    showAlertToast(t, rawKind);
+  }
+
+  // Thao tác đến từ thông báo hệ thống (service worker chuyển sang, hoặc qua địa chỉ khi app vừa mở)
+  function handleNotificationAction(act, id, kind) {
+    const t = findTask(id);
+    if (!t || t.deleted || t.done) return;
+    if (act !== "open") return runAlertAction(act, id, kind);
+    // Bấm vào thông báo (iPhone không có nút trên thông báo) → hiện ô nhắc kèm nút trong app
+    if (kind && ALERT_ACTIONS[kind] && !(t.startedAt && (kind === "before" || kind === "start"))) showAlertToast(t, kind);
+  }
+
+  function initNotificationActions() {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", (e) => {
+        if (e.data?.type === "alert-action") handleNotificationAction(e.data.act, e.data.taskId, e.data.kind);
+      });
+    }
+    const q = new URLSearchParams(location.search);
+    if (q.get("task")) {
+      history.replaceState(null, "", location.pathname);
+      handleNotificationAction(q.get("act") || "open", q.get("task"), q.get("kind") || null);
+    }
+  }
+
   function tick() {
-    if (Reminder.check(state.tasks, onAlert)) save();
+    // Cờ "đã nhắc" chỉ lưu trên máy, không cần đồng bộ
+    if (Reminder.check(live(), onAlert)) save();
     render(); // cập nhật "còn x phút"
   }
 
@@ -399,7 +531,9 @@
       if (!t) return $("#edit-dialog").close();
       const start = $("#edit-start").value || null;
       const duration = start ? Number($("#edit-duration").value) || 0 : 0;
-      const due = TimeUtils.addMinutes(start, duration);
+      // Việc đang xử lý: giờ kết thúc tính từ lúc bấm Bắt đầu
+      const base = t.startedAt && duration > 0 ? TimeUtils.toLocalInput(new Date(t.startedAt)) : start;
+      const due = TimeUtils.addMinutes(base, duration);
       const remind = start ? Number($("#edit-remind").value) : -1;
       // Đổi thời gian hoặc mốc nhắc → nhắc lại từ đầu
       if (start !== (t.start || t.due) || due !== t.due || remind !== t.remindBefore) {
@@ -417,7 +551,7 @@
         remindBefore: remind,
         priority: $("#edit-priority").value,
       });
-      save();
+      save(t);
       $("#edit-dialog").close();
       render();
     };
@@ -432,7 +566,7 @@
 
   let askedThisSession = false;
   function maybeAskPermission() {
-    const hasDue = state.tasks.some((t) => t.due && !t.done);
+    const hasDue = live().some((t) => t.due && !t.done);
     if (askedThisSession || !hasDue || !Reminder.needsPermission()) return;
     askedThisSession = true;
     toast("Bật thông báo để được nhắc ngay cả khi bạn đang ở tab/app khác?", {
@@ -446,11 +580,120 @@
     updateNotifyCard();
     if (res === "granted") {
       const pushed = await PushSync.enable();
+      // Sau khi bật, gửi ngay lịch nhắc hiện tại
       if (pushed) PushSync.sync(pushEvents());
       toast(pushed ? "Đã bật thông báo ✅ — vẫn được nhắc kể cả khi tắt app." : "Đã bật thông báo ✅ (chỉ nhắc khi app đang mở).");
     }
     else if (res === "denied") toast("Thông báo bị chặn. Bạn có thể bật lại trong cài đặt trình duyệt.", { variant: "toast-warn" });
     else if (res === "unsupported") toast("Trình duyệt này không hỗ trợ thông báo. Trên iPhone, hãy thêm app vào Màn hình chính trước.", { variant: "toast-warn", timeout: 7000 });
+  }
+
+  // ---------- Tài khoản & đồng bộ ----------
+  let authMode = "login";
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    const reg = mode === "register";
+    $("#auth-title").textContent = reg ? "Tạo tài khoản" : "Đăng nhập";
+    $("#auth-submit").textContent = reg ? "Đăng ký" : "Đăng nhập";
+    $("#auth-switch-text").textContent = reg ? "Đã có tài khoản?" : "Chưa có tài khoản?";
+    $("#auth-switch").textContent = reg ? "Đăng nhập" : "Đăng ký";
+    $("#auth-password").autocomplete = reg ? "new-password" : "current-password";
+    $("#auth-hint").hidden = !reg;
+    $("#auth-error").hidden = true;
+  }
+
+  function showAuth(show) {
+    $("#auth").hidden = !show;
+    if (show) $("#auth-email").focus();
+  }
+
+  function renderAccount() {
+    const on = Api.available() && Api.isLoggedIn();
+    $("#account").hidden = !on;
+    if (on) $("#account-email").textContent = Api.email();
+  }
+
+  const SYNC_LABEL = {
+    syncing: "🔄 Đang đồng bộ…",
+    ok: "☁️ Đã đồng bộ",
+    offline: "📴 Mất mạng — sẽ đồng bộ khi có mạng",
+    error: "⚠️ Lỗi đồng bộ, sẽ thử lại",
+    idle: "",
+  };
+
+  function renderSyncStatus(status) {
+    $("#sync-status").textContent = SYNC_LABEL[status] ?? "";
+    $("#sync-status").dataset.state = status;
+  }
+
+  async function onLoggedIn(email) {
+    const owner = Storage.loadValue(OWNER_KEY);
+    if (owner && owner !== email) {
+      // Dữ liệu trên máy thuộc tài khoản khác → bỏ, tải dữ liệu của tài khoản này về
+      state.tasks = [];
+      TaskSync.clear();
+    } else if (!owner) {
+      // Việc tạo trên máy trước khi có tài khoản → đưa lên tài khoản, không mất
+      TaskSync.markAll(state.tasks);
+    }
+    Storage.saveValue(OWNER_KEY, email);
+    Storage.saveTasks(state.tasks);
+    showAuth(false);
+    renderAccount();
+    render();
+    await PushSync.init();
+    await TaskSync.syncNow();
+  }
+
+  async function submitAuth(e) {
+    e.preventDefault();
+    const btn = $("#auth-submit");
+    btn.disabled = true;
+    $("#auth-error").hidden = true;
+    try {
+      const register = authMode === "register";
+      const session = await Api.login($("#auth-email").value, $("#auth-password").value, register);
+      $("#auth-password").value = "";
+      await onLoggedIn(session.email);
+      toast(register ? "Đã tạo tài khoản ✅" : "Đã đăng nhập ✅");
+    } catch (err) {
+      $("#auth-error").textContent = err.status ? err.message : "Không kết nối được server. Kiểm tra mạng rồi thử lại.";
+      $("#auth-error").hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function logout() {
+    await TaskSync.syncNow();
+    if (TaskSync.hasPending() && !confirm("Còn thay đổi chưa đồng bộ lên server (có thể do mất mạng). Đăng xuất sẽ mất các thay đổi này. Vẫn đăng xuất?")) return;
+    await PushSync.disable();
+    await Api.logout();
+    // Xoá dữ liệu trên máy để người khác dùng máy này không thấy
+    state.tasks = [];
+    TaskSync.clear();
+    Storage.saveTasks([]);
+    Storage.saveValue(OWNER_KEY, null);
+    renderSyncStatus("idle");
+    renderAccount();
+    render();
+    showAuth(true);
+  }
+
+  function initAccount() {
+    TaskSync.init({
+      getTasks: () => state.tasks,
+      setTasks: (list) => { state.tasks = list; Storage.saveTasks(list); render(); },
+      onStatus: renderSyncStatus,
+      // Danh sách việc vừa cập nhật → gửi lịch nhắc mới lên server cho mọi thiết bị
+      onSynced: () => PushSync.sync(pushEvents()),
+    });
+    Api.onUnauthorized(() => { renderAccount(); setAuthMode("login"); showAuth(true); });
+    $("#auth-form").onsubmit = submitAuth;
+    $("#auth-switch").onclick = () => setAuthMode(authMode === "login" ? "register" : "login");
+    $("#logout").onclick = logout;
+    setAuthMode("login");
   }
 
   // ---------- Giao diện sáng/tối ----------
@@ -486,6 +729,7 @@
       const id = item.dataset.id;
       const action = actionEl.dataset.action;
       if (action === "toggle") toggleTask(id);
+      if (action === "start") startTask(id);
       if (action === "edit") openEdit(id);
       if (action === "delete") deleteTask(id);
     };
@@ -534,8 +778,15 @@
   initEditDialog();
   initEvents();
   updateNotifyCard();
+  initAccount();
+  initNotificationActions();
   registerServiceWorker();
   Reminder.start(tick);
-  // Mở app: đăng ký lại thông báo đẩy (nếu đã bật trước đó) rồi đồng bộ lịch nhắc
-  PushSync.init().then(() => PushSync.sync(pushEvents()));
+  renderAccount();
+  if (Api.available() && !Api.isLoggedIn()) {
+    showAuth(true); // có server → bắt buộc đăng nhập để đồng bộ
+  } else if (Api.isLoggedIn()) {
+    // Mở app: đăng ký lại thông báo đẩy (nếu đã bật) rồi đồng bộ; xong đồng bộ sẽ gửi lịch nhắc
+    PushSync.init().then(() => TaskSync.syncNow());
+  }
 })();

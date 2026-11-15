@@ -34,13 +34,21 @@
         <button class="filter" data-filter="done"><span>✅ Đã xong</span><b data-count="done">0</b></button>
       </nav>
 
+      <div class="account" id="account" hidden>
+        <div class="account-info">
+          <span class="account-email" id="account-email"></span>
+          <span class="sync-status" id="sync-status"></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="logout">Đăng xuất</button>
+      </div>
+
       <div class="notify-card" id="notify-card" hidden>
         <p>Bật thông báo để được nhắc kể cả khi đang ở tab khác.</p>
         <button class="btn btn-primary btn-sm" id="enable-notify">Bật thông báo</button>
       </div>
 
       <div class="sidebar-footer">
-        <button class="btn btn-ghost btn-sm" id="theme-toggle" title="Đổi giao diện sáng/tối">🌓 Giao diện</button>
+        <button class="btn btn-ghost btn-sm" id="theme-toggle" title="Đổi giao diện sáng/tối" aria-label="Đổi giao diện sáng/tối">🌓<span class="btn-text"> Giao diện</span></button>
         <button class="btn btn-ghost btn-sm" id="test-alert" title="Thử chuông nhắc">🔔 Thử nhắc</button>
       </div>
     </aside>
@@ -53,34 +61,34 @@
         </div>
         <label class="search">
           <span aria-hidden="true">🔍</span>
-          <input id="search" type="search" placeholder="Tìm công việc…  ( / )" autocomplete="off" />
+          <input id="search" type="search" placeholder="Tìm công việc…" title="Phím tắt: /" autocomplete="off" />
         </label>
       </header>
 
       <!-- Form thêm nhanh -->
       <form class="composer" id="composer" autocomplete="off">
         <div class="composer-row">
-          <input id="new-title" class="composer-title" placeholder="Thêm việc mới… (nhấn N)" maxlength="200" required />
+          <input id="new-title" class="composer-title" placeholder="Thêm việc mới…" title="Phím tắt: N" maxlength="200" required />
           <button type="submit" class="btn btn-primary">Thêm</button>
         </div>
 
         <div class="composer-details" id="composer-details">
-          <textarea id="new-note" rows="2" placeholder="Ghi chú (không bắt buộc)"></textarea>
+          <textarea id="new-note" rows="1" placeholder="Ghi chú (không bắt buộc)"></textarea>
           <div class="field-grid">
             <label class="field">
               <span>Bắt đầu</span>
-              <input id="new-start" type="datetime-local" />
+              <span class="dt is-empty"><input id="new-start" type="datetime-local" /><span class="dt-ph">Chọn ngày giờ</span></span>
             </label>
             <label class="field">
-              <span>Thời lượng dự kiến</span>
+              <span>Thời lượng</span>
               <select id="new-duration"></select>
             </label>
             <label class="field">
-              <span>Nhắc trước giờ bắt đầu</span>
+              <span>Nhắc trước</span>
               <select id="new-remind"></select>
             </label>
             <label class="field">
-              <span>Độ ưu tiên</span>
+              <span>Ưu tiên</span>
               <select id="new-priority">
                 <option value="low">Thấp</option>
                 <option value="medium" selected>Trung bình</option>
@@ -121,10 +129,10 @@
       <label class="field"><span>Tiêu đề</span><input id="edit-title" required maxlength="200" /></label>
       <label class="field"><span>Ghi chú</span><textarea id="edit-note" rows="3"></textarea></label>
       <div class="field-grid">
-        <label class="field"><span>Bắt đầu</span><input id="edit-start" type="datetime-local" /></label>
-        <label class="field"><span>Thời lượng dự kiến</span><select id="edit-duration"></select></label>
-        <label class="field"><span>Nhắc trước giờ bắt đầu</span><select id="edit-remind"></select></label>
-        <label class="field"><span>Độ ưu tiên</span>
+        <label class="field"><span>Bắt đầu</span><span class="dt is-empty"><input id="edit-start" type="datetime-local" /><span class="dt-ph">Chọn ngày giờ</span></span></label>
+        <label class="field"><span>Thời lượng</span><select id="edit-duration"></select></label>
+        <label class="field"><span>Nhắc trước</span><select id="edit-remind"></select></label>
+        <label class="field"><span>Ưu tiên</span>
           <select id="edit-priority">
             <option value="low">Thấp</option>
             <option value="medium">Trung bình</option>
@@ -140,12 +148,34 @@
     </form>
   </dialog>
 
+  <!-- Màn hình đăng nhập / đăng ký -->
+  <div class="auth" id="auth" hidden>
+    <form class="auth-card" id="auth-form" autocomplete="on">
+      <div class="auth-brand"><span class="brand-logo">✓</span><span>Việc cần làm</span></div>
+      <h2 id="auth-title">Đăng nhập</h2>
+      <label class="field"><span>Email</span>
+        <input id="auth-email" type="email" autocomplete="username" inputmode="email" required maxlength="254" />
+      </label>
+      <label class="field"><span>Mật khẩu</span>
+        <input id="auth-password" type="password" autocomplete="current-password" required maxlength="200" />
+      </label>
+      <p class="auth-hint" id="auth-hint" hidden>Ít nhất 8 ký tự. Hiện chưa có chức năng quên mật khẩu — hãy ghi nhớ.</p>
+      <p class="auth-error" id="auth-error" role="alert" hidden></p>
+      <button class="btn btn-primary auth-submit" id="auth-submit" type="submit">Đăng nhập</button>
+      <p class="auth-switch"><span id="auth-switch-text">Chưa có tài khoản?</span>
+        <button type="button" class="link-btn" id="auth-switch">Đăng ký</button></p>
+    </form>
+  </div>
+
   <div class="toasts" id="toasts" aria-live="assertive"></div>
 
   <!-- Script thường (không dùng ES module) để mở thẳng file vẫn chạy -->
   <script src="js/time-utils.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/reminder.js"></script>
+  <script src="js/alert-actions.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/task-sync.js"></script>
   <script src="js/push-sync.js"></script>
   <script src="js/app.js"></script>
 </body>

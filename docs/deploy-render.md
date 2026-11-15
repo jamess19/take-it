@@ -87,10 +87,11 @@ Yêu cầu: iOS (hệ điều hành iPhone) **16.4 trở lên**.
 1. Mở **Safari** (bắt buộc Safari), vào `https://<dia-chi-app>`.
 2. Bấm nút **Chia sẻ** (ô vuông có mũi tên lên) → **Thêm vào Màn hình chính** → **Thêm**.
 3. **Mở app từ icon trên màn hình chính** (không mở trong Safari — iPhone chỉ cho phép thông báo với app đã thêm vào màn hình chính).
-4. Bấm **Bật thông báo** → **Cho phép**. App báo "vẫn được nhắc kể cả khi tắt app" là thành công.
-5. Thử: mở trên máy tính hoặc thu nhỏ app → bấm **🔔 Thử nhắc** (trên iPhone nút này ẩn ở màn hình nhỏ; cách khác: tạo 1 việc bắt đầu sau 2 phút, nhắc "Đúng giờ", rồi tắt hẳn app và chờ).
+4. **Đăng ký** tài khoản (lần đầu) hoặc **Đăng nhập** bằng email + mật khẩu — dùng cùng tài khoản trên máy tính và điện thoại để đồng bộ việc.
+5. Bấm **Bật thông báo** → **Cho phép**. App báo "vẫn được nhắc kể cả khi tắt app" là thành công.
+6. Thử: mở trên máy tính hoặc thu nhỏ app → bấm **🔔 Thử nhắc** (trên iPhone nút này ẩn ở màn hình nhỏ; cách khác: tạo 1 việc bắt đầu sau 2 phút, nhắc "Đúng giờ", rồi tắt hẳn app và chờ).
 
-Trên máy tính (Chrome/Edge/Safari) cũng làm tương tự: mở địa chỉ app → **Bật thông báo**.
+Trên máy tính (Chrome/Edge/Safari) cũng làm tương tự: mở địa chỉ app → **Đăng nhập** → **Bật thông báo**.
 
 ## Cập nhật app về sau
 
@@ -116,7 +117,7 @@ Render tự build và deploy lại trong vài phút. Dữ liệu trong Neon gi�
 
 ## Giới hạn của gói miễn phí
 
-- **Danh sách việc lưu trên từng thiết bị** (bộ nhớ trình duyệt), server chỉ giữ lịch nhắc. Việc tạo trên iPhone không tự xuất hiện trên máy tính.
+- Danh sách việc đồng bộ qua tài khoản và lưu trong Neon. Gói free của Neon có giới hạn dung lượng, đủ cho dùng cá nhân.
 - Render free có 750 giờ chạy/tháng — đủ cho 1 server chạy cả tháng (31 ngày ≈ 744 giờ). Không nên tạo thêm service free thứ hai trong cùng tài khoản.
 - Việc dùng cron ping để giữ server thức là cách phổ biến nhưng nằm ngoài mục đích của gói free; Render có thể thay đổi chính sách. Nếu cần ổn định lâu dài (ví dụ khi tích hợp AI), nâng gói Render trả phí (khoảng 7 USD/tháng) là hết ngủ, không cần cron-job.org.
 - Lời nhắc bị lỡ khi server ngừng quá 1 giờ sẽ bị bỏ qua (không gửi dồn).
