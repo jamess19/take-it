@@ -542,21 +542,23 @@
     }
     fillRemindSelect($("#edit-remind"), t.remindBefore < 0 && !t.due ? DEFAULT_REMIND : t.remindBefore);
     updateEndPreview($("#edit-start"), $("#edit-duration"), $("#edit-end"));
-    $("#edit-priority").value = t.priority;
-    $("#edit-dialog").showModal();
+    const prio = document.querySelector(`input[name="edit-priority"][value="${t.priority}"]`);
+    if (prio) prio.checked = true;
+    PageDialog.open($("#edit-dialog")); // điện thoại: mở thành trang riêng
     autosize($("#edit-note")); // đo sau khi hộp thoại đã hiện
     $("#edit-title").focus();
   }
 
   function initEditDialog() {
-    $("#edit-cancel").onclick = () => $("#edit-dialog").close();
+    $("#edit-cancel").onclick = () => PageDialog.close($("#edit-dialog"));
+    $("#edit-cancel-top").onclick = () => PageDialog.close($("#edit-dialog"));
     const preview = () => updateEndPreview($("#edit-start"), $("#edit-duration"), $("#edit-end"));
     $("#edit-start").oninput = preview;
     $("#edit-duration").onchange = preview;
     $("#edit-form").onsubmit = (e) => {
       e.preventDefault();
       const t = findTask(editingId);
-      if (!t) return $("#edit-dialog").close();
+      if (!t) return PageDialog.close($("#edit-dialog"));
       const start = $("#edit-start").value || null;
       const duration = start ? Number($("#edit-duration").value) || 0 : 0;
       // Việc đang xử lý: giờ kết thúc tính từ lúc bấm Bắt đầu
@@ -577,14 +579,17 @@
         duration,
         due,
         remindBefore: remind,
-        priority: $("#edit-priority").value,
+        priority: document.querySelector('input[name="edit-priority"]:checked')?.value || t.priority,
       });
       save(t);
-      $("#edit-dialog").close();
+      PageDialog.close($("#edit-dialog"));
       render();
     };
     // Bấm ra ngoài hộp thoại để đóng
-    $("#edit-dialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+    $("#edit-dialog").addEventListener("click", (e) => {
+      if (e.target === e.currentTarget && !PageDialog.isPage(e.currentTarget)) PageDialog.close(e.currentTarget);
+    });
+    PageDialog.attach($("#edit-dialog"));
   }
 
   // ---------- Quyền thông báo ----------

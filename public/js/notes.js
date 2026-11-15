@@ -206,10 +206,11 @@ const Notes = (() => {
     // Rời ghi chú bằng nút Back của trình duyệt (không qua nút đóng): tự lưu để không mất chữ
     if (current && current.id !== note?.id && edited()) saveCurrent();
     if (!note) {
-      if (dlg().open) dlg().close();
+      PageDialog.close(dlg());
       current = null;
       return;
     }
+    const changed = current?.id !== note.id || !dlg().open;
     if (current?.id !== note.id) {
       current = { id: note.id, taskId: note.taskId, title: note.title, body: note.body, createdAt: note.createdAt, isNew: note.isNew };
       titleInput().value = note.title;
@@ -219,13 +220,23 @@ const Notes = (() => {
     renderHead();
     renderTabs();
     refreshState();
-    if (!dlg().open) dlg().showModal();
+    if (!dlg().open) PageDialog.open(dlg());
     autosize(); // đo chiều cao sau khi trang đã hiện
-    // Mở ghi chú: hiện từ đầu trang (tên ở trên), con trỏ chờ ở cuối nội dung
+    if (!changed) return;
+    if (isPage()) {
+      // Điện thoại: lên đầu trang; chỉ tự focus khi ghi chú mới (tránh bàn phím bật lên làm trang nhảy)
+      window.scrollTo(0, 0);
+      if (note.isNew) titleInput().focus({ preventScroll: true });
+      return;
+    }
+    // Máy tính: hiện từ đầu (tên ở trên), con trỏ chờ ở cuối nội dung
     if (note.isNew || !note.title) titleInput().focus({ preventScroll: true });
     else { const ed = editor(); ed.focus({ preventScroll: true }); ed.setSelectionRange(ed.value.length, ed.value.length); }
     $("#note-scroll").scrollTop = 0;
   }
+
+  // Máy tính: popup lớn. Điện thoại: trang riêng (xem page-dialog.js)
+  const isPage = () => PageDialog.isPage(dlg());
 
   // Thanh trên: tên việc mà ghi chú gắn vào
   function renderHead() {
@@ -350,7 +361,7 @@ const Notes = (() => {
     let downOutside = false;
     dlg().addEventListener("pointerdown", (e) => { downOutside = e.target === dlg(); });
     dlg().addEventListener("click", (e) => {
-      if (e.target === dlg() && downOutside) return close();
+      if (e.target === dlg() && downOutside && !isPage()) return close();
       if (e.target === $("#note-scroll") || e.target.classList.contains("note-sheet")) editor().focus();
     });
     titleInput().addEventListener("input", () => { refreshState(); });
@@ -363,6 +374,7 @@ const Notes = (() => {
     };
     // Esc / nút Back của Android: hỏi lưu như nút đóng
     dlg().addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+    PageDialog.attach(dlg(), close);
     window.addEventListener("resize", () => { if (dlg().open) autosize(); });
     dlg().addEventListener("keydown", (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveWithFeedback(); }

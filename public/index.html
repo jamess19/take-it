@@ -217,6 +217,12 @@
   <!-- Hộp thoại sửa công việc -->
   <dialog id="edit-dialog" class="dialog">
     <form method="dialog" id="edit-form">
+      <!-- Chỉ hiện khi mở dạng trang (điện thoại): Huỷ · tiêu đề · Lưu -->
+      <div class="page-bar">
+        <button type="button" class="page-bar-btn" id="edit-cancel-top">Huỷ</button>
+        <b>Sửa công việc</b>
+        <button type="submit" class="page-bar-btn is-primary">Lưu</button>
+      </div>
       <h2>Sửa công việc</h2>
       <label class="field"><span>Tiêu đề</span><input id="edit-title" required maxlength="200" /></label>
       <label class="field"><span>Ghi chú</span><textarea id="edit-note" rows="3" maxlength="2000" data-autosize></textarea></label>
@@ -224,13 +230,14 @@
         <label class="field"><span>Bắt đầu</span><span class="dt is-empty"><input id="edit-start" type="datetime-local" /><span class="dt-ph">Chọn ngày giờ</span></span></label>
         <label class="field"><span>Thời lượng</span><select id="edit-duration"></select></label>
         <label class="field"><span>Nhắc trước</span><select id="edit-remind"></select></label>
-        <label class="field"><span>Ưu tiên</span>
-          <select id="edit-priority">
-            <option value="low">Thấp</option>
-            <option value="medium">Trung bình</option>
-            <option value="high">Cao</option>
-          </select>
-        </label>
+        <div class="field"><span>Ưu tiên</span>
+          <!-- 3 nút bấm thay cho ô chọn: chọn 1 chạm, không sổ menu -->
+          <div class="segmented" role="radiogroup" aria-label="Ưu tiên">
+            <label class="seg-low"><input type="radio" name="edit-priority" value="low" /><span>Thấp</span></label>
+            <label class="seg-medium"><input type="radio" name="edit-priority" value="medium" /><span>Trung bình</span></label>
+            <label class="seg-high"><input type="radio" name="edit-priority" value="high" /><span>Cao</span></label>
+          </div>
+        </div>
       </div>
       <p class="end-preview" id="edit-end" hidden></p>
       <div class="dialog-actions">
@@ -313,6 +320,8 @@
   <script src="js/task-sync.js"></script>
   <script src="js/push-sync.js"></script>
   <script src="js/profile.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/page-dialog.js"></script>
   <script src="js/notes.js"></script>
   <script src="js/app.js"></script>
 </body>
