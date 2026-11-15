@@ -232,6 +232,7 @@
     renderCounts();
     Notes.renderHead(); // trang ghi chú đang mở: cập nhật trạng thái việc
     if (currentView() === "notes") Notes.renderPage();
+    if (currentView() === "profile") Profile.refreshView(); // thống kê trên trang cá nhân
   }
 
   // ---------- Toast ----------
@@ -794,6 +795,35 @@
       toast,
       // Đổi email: cập nhật email phiên đăng nhập và chủ dữ liệu trên máy (tránh bị coi là tài khoản khác)
       onEmailChanged: (email) => { Api.setEmail(email); Storage.saveValue(OWNER_KEY, email); },
+      // Thống kê cho trang cá nhân
+      stats: () => {
+        const tasks = live();
+        const by = (c) => tasks.filter((t) => category(t) === c).length;
+        return { doing: by("doing"), today: by("today"), overdue: by("overdue"), done: by("done"), total: tasks.length, notes: Notes.live().length };
+      },
+      // Thống kê: việc xong (kèm đúng hạn hay không) và việc sắp tới
+      insights: () => {
+        const now = Date.now();
+        const tasks = live();
+        const completed = tasks.filter((t) => t.done && t.completedAt).map((t) => ({
+          at: t.completedAt,
+          onTime: t.due ? t.completedAt <= TimeUtils.parse(t.due) : null, // không có hạn → không tính
+        }));
+        const upcoming = tasks
+          .filter((t) => !t.done && t.due)
+          .map((t) => ({ t, cat: category(t, now), start: Reminder.startOf(t) }))
+          .sort((a, b) => (b.cat === "overdue") - (a.cat === "overdue") || a.start - b.start) // quá hạn lên đầu, rồi theo giờ bắt đầu
+          .slice(0, 5)
+          .map(({ t, cat, start }) => ({
+            id: t.id,
+            title: t.title,
+            when: TimeUtils.formatDue(start),
+            badge: cat === "overdue" ? "Quá hạn" : cat === "doing" ? "Đang làm" : "",
+            badgeCls: cat === "overdue" ? "is-overdue" : "is-doing",
+          }));
+        return { completed, upcoming };
+      },
+      openTask: (id) => openEdit(id),
     });
     setAuthMode("login");
   }

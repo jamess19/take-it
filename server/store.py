@@ -77,7 +77,8 @@ def user_email(uid: str) -> str | None:
 # ---------- Hồ sơ cá nhân ----------
 def get_profile(uid: str) -> dict | None:
     with db.tx() as t:
-        return t.one("SELECT email, name, note, avatar FROM users WHERE id = ?", (uid,))
+        # createdAt: thêm sau (trang cá nhân hiện "Tham gia từ …"); chỉ thêm trường, client cũ bỏ qua
+        return t.one('SELECT email, name, note, avatar, created_at AS "createdAt" FROM users WHERE id = ?', (uid,))
 
 
 def update_profile(uid: str, fields: dict) -> None:

@@ -1,6 +1,6 @@
 // Service worker: cache file để app chạy offline, nhận thông báo đẩy và xử lý nút bấm trên thông báo.
 importScripts("js/alert-actions.js");
-const CACHE = "todo-cache-v40";
+const CACHE = "todo-cache-v46";
 const ASSETS = [
   "./",
   "index.html",

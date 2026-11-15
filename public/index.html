@@ -174,42 +174,53 @@
         </div>
       </section>
 
-      <!-- Trang cá nhân -->
+      <!-- Trang cá nhân kiểu GitHub: cột trái hồ sơ, cột phải thống kê + tài khoản -->
       <section class="profile" id="profile-view" hidden>
-        <header class="profile-head">
-          <span class="avatar avatar-lg" id="profile-avatar"></span>
-          <div>
-            <h1 id="profile-title">Trang cá nhân</h1>
-            <p class="subtitle" id="profile-sub"></p>
+        <aside class="pf-side">
+          <button type="button" class="pf-avatar-btn" data-pf="avatar" aria-label="Đổi ảnh đại diện" title="Đổi ảnh đại diện">
+            <span class="avatar pf-avatar" id="profile-avatar"></span>
+            <span class="pf-avatar-edit">✎ Sửa</span>
+          </button>
+          <div class="pf-names">
+            <h1 id="profile-title"></h1>
+            <p class="pf-email" id="profile-sub"></p>
           </div>
-        </header>
+          <p class="pf-bio" id="profile-bio" hidden></p>
+          <button type="button" class="btn btn-ghost pf-edit-btn" data-pf="profile">Chỉnh sửa hồ sơ</button>
+          <ul class="pf-meta">
+            <li><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg><span id="pf-joined"></span></li>
+            <li><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span id="pf-done-meta"></span></li>
+            <li><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span id="pf-notes-meta"></span></li>
+          </ul>
+        </aside>
 
-        <form class="card" id="profile-form" autocomplete="off">
-          <h2>Thông tin cơ bản</h2>
-          <label class="field"><span>Tên hiển thị</span><input id="pf-name" maxlength="60" placeholder="Tên của bạn" /></label>
-          <div class="field"><span>Ảnh đại diện</span><div class="avatar-grid" id="pf-avatars" role="radiogroup" aria-label="Ảnh đại diện"></div></div>
-          <label class="field"><span>Ghi chú</span><textarea id="pf-note" rows="3" maxlength="500" placeholder="Vài dòng về bạn, mục tiêu…"></textarea></label>
-          <p class="form-error" role="alert" hidden></p>
-          <div class="card-actions"><button class="btn btn-primary" type="submit">Lưu thay đổi</button></div>
-        </form>
+        <div class="pf-main">
+          <h2 class="pf-section-title">Tổng quan</h2>
+          <div class="pf-stats">
+            <div class="pf-stat"><b id="pf-stat-doing">0</b><span>Đang làm</span></div>
+            <div class="pf-stat"><b id="pf-stat-today">0</b><span>Hôm nay</span></div>
+            <div class="pf-stat" id="pf-stat-overdue-card"><b id="pf-stat-overdue">0</b><span>Quá hạn</span></div>
+            <div class="pf-stat"><b id="pf-stat-done">0</b><span>Đã xong</span></div>
+          </div>
 
-        <form class="card" id="email-form">
-          <h2>Email đăng nhập</h2>
-          <label class="field"><span>Email mới</span><input id="pf-email" type="email" required maxlength="254" autocomplete="email" /></label>
-          <label class="field"><span>Mật khẩu hiện tại</span><input id="pf-email-pw" type="password" required maxlength="200" autocomplete="current-password" /></label>
-          <p class="form-error" role="alert" hidden></p>
-          <div class="card-actions"><button class="btn btn-primary" type="submit">Đổi email</button></div>
-        </form>
+          <h2 class="pf-section-title">Hoàn thành 7 ngày qua <small id="pf-week-sum"></small></h2>
+          <div class="pf-chart-card"><div class="pf-chart" id="pf-chart" role="img" aria-label="Số việc hoàn thành mỗi ngày trong 7 ngày qua"></div></div>
 
-        <form class="card" id="password-form">
-          <h2>Mật khẩu</h2>
-          <label class="field"><span>Mật khẩu hiện tại</span><input id="pf-cur-pw" type="password" required maxlength="200" autocomplete="current-password" /></label>
-          <label class="field"><span>Mật khẩu mới</span><input id="pf-new-pw" type="password" required minlength="8" maxlength="200" autocomplete="new-password" /></label>
-          <label class="field"><span>Nhập lại mật khẩu mới</span><input id="pf-new-pw2" type="password" required minlength="8" maxlength="200" autocomplete="new-password" /></label>
-          <p class="field-hint">Ít nhất 8 ký tự. Đổi mật khẩu sẽ đăng xuất các thiết bị khác.</p>
-          <p class="form-error" role="alert" hidden></p>
-          <div class="card-actions"><button class="btn btn-primary" type="submit">Đổi mật khẩu</button></div>
-        </form>
+          <h2 class="pf-section-title">Sắp tới</h2>
+          <ul class="pf-upcoming" id="pf-upcoming"></ul>
+
+          <h2 class="pf-section-title">Tài khoản</h2>
+          <div class="settings-list">
+            <button type="button" class="settings-row" data-pf="email">
+              <span class="settings-label">Email đăng nhập</span>
+              <span class="settings-value" id="pf-email-view"></span>
+            </button>
+            <button type="button" class="settings-row" data-pf="password">
+              <span class="settings-label">Mật khẩu</span>
+              <span class="settings-value">••••••••</span>
+            </button>
+          </div>
+        </div>
       </section>
     </main>
   </div>
@@ -271,6 +282,45 @@
       </div>
     </div>
     <div class="note-saved-toast" id="note-saved-toast" role="status" hidden>✓ Đã lưu</div>
+  </dialog>
+
+  <!-- Popup đổi thông tin cá nhân (điện thoại: mở thành trang riêng) -->
+  <dialog class="dialog pf-dialog" id="pf-avatar-dialog">
+    <form id="profile-avatar-form">
+      <h2>Ảnh đại diện</h2>
+      <div class="avatar-grid" id="pf-avatars" role="radiogroup" aria-label="Ảnh đại diện"></div>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" class="btn btn-ghost" data-close>Huỷ</button><button type="submit" class="btn btn-primary">Lưu</button></div>
+    </form>
+  </dialog>
+  <dialog class="dialog pf-dialog" id="pf-profile-dialog">
+    <form id="profile-edit-form" autocomplete="off">
+      <h2>Chỉnh sửa hồ sơ</h2>
+      <label class="field"><span>Tên hiển thị</span><input id="pf-name" maxlength="60" placeholder="Tên của bạn" /></label>
+      <label class="field"><span>Giới thiệu</span><textarea id="pf-note" rows="3" maxlength="500" data-autosize placeholder="Vài dòng về bạn: đang học gì, mục tiêu…"></textarea></label>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" class="btn btn-ghost" data-close>Huỷ</button><button type="submit" class="btn btn-primary">Lưu</button></div>
+    </form>
+  </dialog>
+  <dialog class="dialog pf-dialog" id="pf-email-dialog">
+    <form id="email-form">
+      <h2>Đổi email đăng nhập</h2>
+      <label class="field"><span>Email mới</span><input id="pf-email" type="email" required maxlength="254" autocomplete="email" /></label>
+      <label class="field"><span>Mật khẩu hiện tại</span><input id="pf-email-pw" type="password" required maxlength="200" autocomplete="current-password" /></label>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" class="btn btn-ghost" data-close>Huỷ</button><button type="submit" class="btn btn-primary">Đổi email</button></div>
+    </form>
+  </dialog>
+  <dialog class="dialog pf-dialog" id="pf-password-dialog">
+    <form id="password-form">
+      <h2>Đổi mật khẩu</h2>
+      <label class="field"><span>Mật khẩu hiện tại</span><input id="pf-cur-pw" type="password" required maxlength="200" autocomplete="current-password" /></label>
+      <label class="field"><span>Mật khẩu mới</span><input id="pf-new-pw" type="password" required minlength="8" maxlength="200" autocomplete="new-password" /></label>
+      <label class="field"><span>Nhập lại mật khẩu mới</span><input id="pf-new-pw2" type="password" required minlength="8" maxlength="200" autocomplete="new-password" /></label>
+      <p class="field-hint">Ít nhất 8 ký tự. Đổi mật khẩu sẽ đăng xuất các thiết bị khác.</p>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" class="btn btn-ghost" data-close>Huỷ</button><button type="submit" class="btn btn-primary">Đổi mật khẩu</button></div>
+    </form>
   </dialog>
 
   <!-- Hỏi khi đóng / chuyển ghi chú mà còn thay đổi chưa lưu -->
