@@ -14,6 +14,8 @@ const PageDialog = (() => {
     dlg.classList.add("as-page");
     document.body.classList.add("dialog-page");
     dlg.show();
+    // show() tự focus nút đầu tiên → bỏ đi (không viền focus, không bật bàn phím)
+    if (dlg.contains(document.activeElement)) document.activeElement.blur();
     window.scrollTo(0, 0);
   }
 

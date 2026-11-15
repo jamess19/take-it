@@ -546,12 +546,12 @@
     if (prio) prio.checked = true;
     PageDialog.open($("#edit-dialog")); // điện thoại: mở thành trang riêng
     autosize($("#edit-note")); // đo sau khi hộp thoại đã hiện
-    $("#edit-title").focus();
+    // Điện thoại (dạng trang): không tự focus → bàn phím không tự bật lên
+    if (!PageDialog.isPage($("#edit-dialog"))) $("#edit-title").focus();
   }
 
   function initEditDialog() {
     $("#edit-cancel").onclick = () => PageDialog.close($("#edit-dialog"));
-    $("#edit-cancel-top").onclick = () => PageDialog.close($("#edit-dialog"));
     const preview = () => updateEndPreview($("#edit-start"), $("#edit-duration"), $("#edit-end"));
     $("#edit-start").oninput = preview;
     $("#edit-duration").onchange = preview;

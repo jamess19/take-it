@@ -628,24 +628,15 @@ dialog.as-page[open] {
 /* Trang ghi chú */
 .note-dialog.as-page .note-bar { position: sticky; top: 0; z-index: 5; background: var(--surface); }
 .note-dialog.as-page .note-scroll { overflow: visible; }
-.note-dialog.as-page .note-sheet { padding-bottom: 50vh; }
+.note-dialog.as-page .note-sheet { padding-bottom: 96px; }
 .note-dialog.as-page .note-saved-toast { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 24px); }
-/* Trang sửa việc (điện thoại): thanh trên kiểu iOS "Huỷ · Sửa công việc · Lưu", ẩn tiêu đề và nút dưới của popup */
-.page-bar { display: none; }
-.dialog.as-page { padding: 0 16px 32px; }
-.dialog.as-page h2, .dialog.as-page .dialog-actions { display: none; }
-.dialog.as-page .page-bar {
-  position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  margin: 0 -16px 6px; padding: calc(env(safe-area-inset-top) + 10px) 8px 10px;
-  background: var(--surface); border-bottom: 1px solid var(--border);
-}
-.page-bar b { font-size: 16px; }
-.page-bar-btn {
-  justify-self: start; border: 0; background: transparent; color: var(--accent); font-size: 16px;
-  padding: 8px 10px; border-radius: 10px; cursor: pointer;
-}
-.page-bar-btn.is-primary { justify-self: end; font-weight: 700; }
-.page-bar-btn:active { background: var(--surface-2); }
+/* Trang sửa việc (điện thoại): tiêu đề ở trên, Huỷ / Lưu ở dưới cùng.
+   Form ngắn → nút nằm sát đáy màn hình (margin-top: auto); form dài → nút theo cuối form. Không dùng fixed. */
+.dialog.as-page { padding: calc(env(safe-area-inset-top) + 18px) 16px calc(env(safe-area-inset-bottom) + 16px); }
+.dialog.as-page form { display: flex; flex-direction: column; min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 34px); }
+.dialog.as-page h2 { margin: 0 0 4px; font-size: 22px; }
+.dialog.as-page .dialog-actions { margin-top: auto; padding-top: 18px; }
+.dialog.as-page .dialog-actions .btn { flex: 1; padding: 13px; font-size: 16px; border-radius: 12px; }
 
 /* Nút chọn liền nhau (Ưu tiên): Thấp · Trung bình · Cao */
 .segmented {
@@ -682,4 +673,7 @@ dialog.as-page[open] {
   border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
 .cs-item.is-disabled { opacity: .45; cursor: default; }
+
+/* Menu tự vẽ trên màn hình cảm ứng: dòng cao hơn cho dễ chạm */
+@media (pointer: coarse) { .cs-item { padding: 12px 38px 12px 14px; font-size: 16px; } }
 

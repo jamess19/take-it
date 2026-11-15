@@ -1,8 +1,8 @@
 // Danh sách sổ xuống tự vẽ cho mọi ô <select> trên máy tính (chuột).
 // Giữ nguyên ô <select> gốc (hiển thị, giá trị, sự kiện change) — chỉ thay cái menu bật ra,
-// vì menu gốc của hệ điều hành không chỉnh được giao diện. Điện thoại (cảm ứng) giữ menu gốc.
+// vì menu gốc của hệ điều hành (macOS, iOS) không chỉnh được giao diện.
 const CustomSelect = (() => {
-  const enabled = () => matchMedia("(pointer: fine)").matches;
+  const enabled = () => true;
   let menu = null;     // phần tử menu đang mở
   let select = null;   // ô select đang mở menu
   let active = -1;     // dòng đang được tô (di chuột / phím mũi tên)
@@ -82,6 +82,26 @@ const CustomSelect = (() => {
   }
 
   function init() {
+    // Cảm ứng: chạm (không vuốt) vào ô select → chặn bảng chọn của iOS, mở menu tự vẽ.
+    // Xử lý ở touchend để vẫn vuốt cuộn trang được khi ngón tay bắt đầu trên ô select.
+    let touch = null;
+    document.addEventListener("touchstart", (e) => {
+      const s = e.target.closest?.("select");
+      touch = s && !s.disabled ? { s, x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+      if (menu && !menu.contains(e.target) && s !== select) close();
+    }, { passive: true, capture: true });
+    document.addEventListener("touchend", (e) => {
+      if (!touch) return;
+      const t = e.changedTouches[0];
+      const moved = Math.abs(t.clientX - touch.x) > 10 || Math.abs(t.clientY - touch.y) > 10;
+      const s = touch.s;
+      touch = null;
+      if (moved || e.target.closest?.("select") !== s) return;
+      e.preventDefault(); // chặn click/focus giả lập → iOS không bật bảng chọn gốc
+      if (select === s) close();
+      else open(s);
+    }, { passive: false, capture: true });
+
     // Nhấn chuột vào ô select: chặn menu gốc, mở menu tự vẽ
     document.addEventListener("mousedown", (e) => {
       const s = e.target.closest?.("select");

@@ -224,9 +224,8 @@ const Notes = (() => {
     autosize(); // đo chiều cao sau khi trang đã hiện
     if (!changed) return;
     if (isPage()) {
-      // Điện thoại: lên đầu trang; chỉ tự focus khi ghi chú mới (tránh bàn phím bật lên làm trang nhảy)
+      // Điện thoại: lên đầu trang, không tự focus (bàn phím chỉ hiện khi người dùng chạm vào ô)
       window.scrollTo(0, 0);
-      if (note.isNew) titleInput().focus({ preventScroll: true });
       return;
     }
     // Máy tính: hiện từ đầu (tên ở trên), con trỏ chờ ở cuối nội dung
