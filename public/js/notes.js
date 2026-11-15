@@ -311,10 +311,10 @@ const Notes = (() => {
       return `
         <li class="note-card" data-note="${n.id}" tabindex="0" role="button" aria-label="Mở ghi chú ${deps.escapeHtml(n.title)}">
           <div class="note-card-head">
-            <h3>${deps.escapeHtml(n.title)}</h3>
+            <span class="note-card-task ${alive ? (t.done ? "is-done" : "") : "is-gone"}">📌 ${alive ? deps.escapeHtml(t.title) : "Việc đã xoá"}</span>
             <time>${fmtWhen(n.updatedAt)}</time>
           </div>
-          <span class="note-card-task ${alive ? (t.done ? "is-done" : "") : "is-gone"}">📌 ${alive ? deps.escapeHtml(t.title) : "Việc đã xoá"}</span>
+          <h3 title="${deps.escapeHtml(n.title)}">${deps.escapeHtml(n.title)}</h3>
           ${excerpt ? `<p>${deps.escapeHtml(excerpt)}</p>` : `<p class="muted">Chưa có nội dung</p>`}
           <small>${words(n.body)} từ</small>
         </li>`;
