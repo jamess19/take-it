@@ -154,7 +154,7 @@
     const startBtn = `<div class="task-cta">${cta}</div>`;
 
     return `
-      <li class="task prio-${t.priority} ${t.done ? "is-done" : ""} ${cat === "doing" ? "is-started" : ""}" data-id="${t.id}">
+      <li class="${["task", `prio-${t.priority}`, t.done && "is-done", cat === "doing" && "is-started"].filter(Boolean).join(" ")}" data-id="${t.id}">
         <button class="check" data-action="toggle" aria-label="${t.done ? "Đánh dấu chưa xong" : "Đánh dấu đã xong"}">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
         </button>
@@ -200,6 +200,38 @@
     $("#progress-text").textContent = `Đã xong ${done}/${total}`;
   }
 
+  // Cập nhật danh sách mà không dựng lại toàn bộ: render() chạy mỗi 15 giây (bộ nhắc) và sau mỗi lần đồng bộ.
+  // - Không đổi gì → không đụng DOM.
+  // - Cùng thứ tự việc/nhóm → chỉ thay thẻ nào nội dung đổi (vd "còn 12 phút" → "còn 11 phút").
+  // - Khác cấu trúc → dựng khung mới nhưng dùng lại thẻ cũ không đổi; hiệu ứng xuất hiện chỉ cho việc mới.
+  let lastListHtml = null;
+  function patchList(html) {
+    if (html === lastListHtml) return;
+    lastListHtml = html;
+    const list = $("#list");
+    const tpl = document.createElement("template");
+    tpl.innerHTML = html;
+    const shape = (root) => [...root.querySelectorAll(".group-title, .task")]
+      .map((el) => (el.classList.contains("task") ? `t:${el.dataset.id}` : `g:${el.textContent}`)).join("|");
+    if (shape(list) === shape(tpl.content)) {
+      const oldItems = list.querySelectorAll(".task");
+      tpl.content.querySelectorAll(".task").forEach((n, i) => {
+        if (oldItems[i].outerHTML !== n.outerHTML) oldItems[i].replaceWith(n);
+      });
+      return;
+    }
+    // Cấu trúc đổi (thêm/xoá/đổi nhóm): dùng lại thẻ cũ nếu nội dung y hệt, chỉ thẻ mới mới có hiệu ứng
+    const old = new Map([...list.querySelectorAll(".task")].map((el) => [el.dataset.id, el]));
+    tpl.content.querySelectorAll(".task").forEach((n) => {
+      const o = old.get(n.dataset.id);
+      if (!o) { if (old.size) n.classList.add("is-new"); return; }
+      // gắn lại vào trang thì không chạy lại hiệu ứng (chỉ gỡ khi có: classList.remove luôn viết lại thuộc tính class)
+      if (o.classList.contains("is-new")) o.classList.remove("is-new");
+      if (o.outerHTML === n.outerHTML) n.replaceWith(o);
+    });
+    list.replaceChildren(tpl.content);
+  }
+
   function render() {
     const q = state.query.trim().toLowerCase();
     const visible = live()
@@ -220,7 +252,7 @@
       html = groupHtml(FILTER_TITLES[state.filter], visible);
     }
 
-    $("#list").innerHTML = html;
+    patchList(html);
     $("#empty").hidden = visible.length > 0;
     if (!visible.length) {
       $("#empty-title").textContent = q ? "Không tìm thấy" : state.filter === "done" ? "Chưa xong việc nào" : "Không có việc nào";

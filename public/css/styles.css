@@ -304,8 +304,9 @@ input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; }
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   border-left: 4px solid var(--prio-low);
   transition: box-shadow .15s, transform .15s, opacity .2s;
-  animation: pop-in .2s ease;
 }
+/* Hiệu ứng xuất hiện chỉ cho việc mới (không chạy lại mỗi lần danh sách cập nhật) */
+.task.is-new { animation: pop-in .2s ease; }
 .task:hover { box-shadow: var(--shadow); }
 .task.prio-high { border-left-color: var(--prio-high); }
 .task.prio-medium { border-left-color: var(--prio-medium); }
